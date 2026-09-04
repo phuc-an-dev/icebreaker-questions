@@ -115,6 +115,11 @@ This document is the single source of truth for AI agents (Antigravity, Claude C
 6. **Strict English-Only Policy**:
    - All code, UI strings, labels, placeholders, error messages, code comments, logs, and documentation MUST be written strictly in English.
    - Do NOT use Vietnamese in source code or UI components (the only exception is the Vietnamese text of existing questions stored in the database and regex diacritic mapping in `stripAccents`).
+7. **No Native `<select>` Elements**:
+   - The native HTML `<select>` element is **banned** across the entire codebase. Every dropdown/select UI must use the `SearchableDropdown` component from `@/components/admin/SearchableDropdown`.
+   - `SearchableDropdown` supports: built-in search filter, icon/color per option, full keyboard navigation (Tab, Shift+Tab, Arrow keys, Enter, Esc), and renders via React Portal to avoid overflow clipping.
+   - When `label=""` is passed, the label row is visually hidden, making it suitable for compact filter bars.
+   - For small fixed sets of options where search is not meaningful (e.g. rows-per-page: 10/20/50/100), use an inline **button group** instead of `SearchableDropdown`.
 
 ---
 

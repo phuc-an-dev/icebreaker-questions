@@ -9,6 +9,7 @@ import { FilterBar } from '@/components/filters/FilterBar';
 import { PresentationModal } from '@/components/stage/PresentationModal';
 import { StatsBar } from '@/components/ui/StatsBar';
 import { StageCanvasBg } from '@/components/canvas/StageCanvasBg';
+import Link from 'next/link';
 import {
   Sparkles,
   HelpCircle,
@@ -16,6 +17,7 @@ import {
   Compass,
   ArrowUp,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface IcebreakerClientProps {
@@ -286,6 +288,15 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
           <p className="mt-1 text-slate-600">
             Powered by MongoDB Atlas • Mobile-First Ergonomic UX • 60fps Interactive Canvas Hologram
           </p>
+          <div className="mt-3">
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-blue-400 transition"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Admin Management Portal</span>
+            </Link>
+          </div>
         </footer>
       </div>
 

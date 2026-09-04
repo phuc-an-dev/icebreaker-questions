@@ -1,0 +1,1081 @@
+'use client';
+
+import React, { useState, useEffect, useCallback, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Sparkles,
+  Plus,
+  Search,
+  ArrowUpDown,
+  Edit2,
+  Trash2,
+  LogOut,
+  ExternalLink,
+  Layers,
+  MessageSquareQuote,
+  Database,
+  ArrowLeft,
+  ArrowRight,
+  DownloadCloud,
+  CheckSquare,
+  Square,
+  RefreshCw,
+} from 'lucide-react';
+import { CategoryMeta, Question, TypeMeta } from '@/types/question';
+import { IconHelper } from '@/components/ui/IconHelper';
+import { QuestionFormModal } from './QuestionFormModal';
+import { CategoryTypeModal } from './CategoryTypeModal';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
+import { ImportExportModal } from './ImportExportModal';
+import { ToastContainer } from '@/components/ui/ToastContainer';
+import { useToast } from '@/hooks/useToast';
+import { SearchableDropdown, DropdownOption } from './SearchableDropdown';
+
+interface AdminDashboardProps {
+  initialCategories: CategoryMeta[];
+  initialTypes: TypeMeta[];
+}
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  initialCategories,
+  initialTypes,
+}) => {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const { toasts, toast, dismiss } = useToast();
+
+  // Active Main Tab
+  const [activeTab, setActiveTab] = useState<'questions' | 'categories' | 'types'>('questions');
+
+  // Categories & Types state
+  const [categories, setCategories] = useState<CategoryMeta[]>(initialCategories);
+  const [types, setTypes] = useState<TypeMeta[]>(initialTypes);
+
+  // Questions State
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [totalQuestions, setTotalQuestions] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+
+  // Filter & Sorting State
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
+  const [sortBy, setSortBy] = useState<'id' | 'text' | 'category' | 'type'>('id');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Modals state
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+
+  const [isCatTypeModalOpen, setIsCatTypeModalOpen] = useState(false);
+  const [catTypeMode, setCatTypeMode] = useState<'category' | 'type'>('category');
+  const [editingCatType, setEditingCatType] = useState<CategoryMeta | TypeMeta | null>(null);
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'single_question' | 'bulk_questions' | 'category' | 'type';
+    id?: number | string;
+    title: string;
+    message: string;
+    count?: number;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+
+  // Debounce search input (400ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // Refresh trigger counter
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const triggerReloadQuestions = useCallback(() => {
+    setIsLoadingQuestions(true);
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  // Fetch Questions from API
+  useEffect(() => {
+    let ignore = false;
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      sortBy,
+      sortOrder,
+    });
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    if (selectedCategory !== 'all') params.set('category', selectedCategory);
+    if (selectedType !== 'all') params.set('type', selectedType);
+
+    fetch(`/api/admin/questions?${params.toString()}`)
+      .then((res) => {
+        if (res.status === 401) {
+          router.push('/admin/login');
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!ignore && data) {
+          setQuestions(data.questions || []);
+          setTotalQuestions(data.total || 0);
+          setTotalPages(data.totalPages || 1);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch admin questions:', err);
+      })
+      .finally(() => {
+        if (!ignore) {
+          setIsLoadingQuestions(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [page, limit, debouncedSearch, selectedCategory, selectedType, sortBy, sortOrder, router, refreshKey]);
+
+  // Refresh categories & types
+  const refreshCategories = async () => {
+    try {
+      const res = await fetch('/api/admin/categories');
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data.categories || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const refreshTypes = async () => {
+    try {
+      const res = await fetch('/api/admin/types');
+      if (res.ok) {
+        const data = await res.json();
+        setTypes(data.types || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Sign out handler
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/login', { method: 'DELETE' });
+      startTransition(() => {
+        router.push('/admin/login');
+        router.refresh();
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Sorting helper
+  const handleToggleSort = (field: 'id' | 'text' | 'category' | 'type') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+    setPage(1);
+  };
+
+  // Selection helpers
+  const handleToggleSelectRow = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAllOnPage = () => {
+    const pageIds = questions.map((q) => q.id);
+    const allSelected = pageIds.every((id) => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  // Delete Confirm Action
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+
+    try {
+      if (deleteTarget.type === 'single_question') {
+        const res = await fetch(`/api/admin/questions/${deleteTarget.id}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          setSelectedIds((prev) => prev.filter((id) => id !== deleteTarget.id));
+          triggerReloadQuestions();
+          toast({ type: 'success', title: 'Question deleted', description: `Question #${deleteTarget.id} has been permanently removed.` });
+        } else {
+          toast({ type: 'error', title: 'Delete failed', description: 'Could not delete the question. Please try again.' });
+        }
+      } else if (deleteTarget.type === 'bulk_questions') {
+        const res = await fetch('/api/admin/questions', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: selectedIds }),
+        });
+        if (res.ok) {
+          toast({ type: 'success', title: `${selectedIds.length} questions deleted`, description: 'Selected questions have been permanently removed.' });
+          setSelectedIds([]);
+          triggerReloadQuestions();
+        } else {
+          toast({ type: 'error', title: 'Bulk delete failed', description: 'Could not delete selected questions.' });
+        }
+      } else if (deleteTarget.type === 'category') {
+        const res = await fetch(`/api/admin/categories?id=${deleteTarget.id}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          toast({ type: 'success', title: 'Category deleted', description: `"${deleteTarget.title}" has been removed.` });
+          refreshCategories();
+        } else {
+          toast({ type: 'error', title: 'Delete failed', description: 'Could not delete the category.' });
+        }
+      } else if (deleteTarget.type === 'type') {
+        const res = await fetch(`/api/admin/types?id=${deleteTarget.id}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          toast({ type: 'success', title: 'Type deleted', description: `"${deleteTarget.title}" has been removed.` });
+          refreshTypes();
+        } else {
+          toast({ type: 'error', title: 'Delete failed', description: 'Could not delete the question type.' });
+        }
+      }
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error(err);
+      toast({ type: 'error', title: 'Unexpected error', description: 'Something went wrong. Please try again.' });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Question Form Submission
+  const handleSubmitQuestion = async (formData: {
+    id?: number;
+    text: string;
+    category: string;
+    type: string;
+    tags: string[];
+  }) => {
+    if (editingQuestion) {
+      const res = await fetch(`/api/admin/questions/${editingQuestion.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update question');
+      }
+      toast({ type: 'success', title: 'Question updated', description: `Question #${editingQuestion.id} has been saved successfully.` });
+    } else {
+      const res = await fetch('/api/admin/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create question');
+      }
+      toast({ type: 'success', title: 'Question created', description: 'New question has been added to the collection.' });
+    }
+    setIsQuestionModalOpen(false);
+    setEditingQuestion(null);
+    triggerReloadQuestions();
+  };
+
+  // Category Form Submission
+  const handleSubmitCategory = async (cat: CategoryMeta) => {
+    const res = await fetch('/api/admin/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cat),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Failed to save category');
+    }
+    toast({ type: 'success', title: 'Category saved', description: `"${cat.label}" has been saved successfully.` });
+    setIsCatTypeModalOpen(false);
+    setEditingCatType(null);
+    refreshCategories();
+  };
+
+  // Type Form Submission
+  const handleSubmitType = async (typeMeta: TypeMeta) => {
+    const res = await fetch('/api/admin/types', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(typeMeta),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Failed to save question type');
+    }
+    toast({ type: 'success', title: 'Question type saved', description: `"${typeMeta.label}" has been saved successfully.` });
+    setIsCatTypeModalOpen(false);
+    setEditingCatType(null);
+    refreshTypes();
+  };
+
+  const getCategoryMeta = (catId: string): CategoryMeta => {
+    return (
+      categories.find((c) => c.id === catId) || {
+        id: catId,
+        label: catId,
+        description: '',
+        color: '#3b82f6',
+        gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+        glowColor: 'rgba(59, 130, 246, 0.4)',
+        borderGlow: 'rgba(59, 130, 246, 0.6)',
+        iconName: 'HelpCircle',
+      }
+    );
+  };
+
+  const getTypeMeta = (typeId: string): TypeMeta => {
+    return (
+      types.find((t) => t.id === typeId) || {
+        id: typeId,
+        label: typeId,
+        hint: '',
+        iconName: 'MessageSquareQuote',
+      }
+    );
+  };
+
+  const isPageAllSelected =
+    questions.length > 0 && questions.every((q) => selectedIds.includes(q.id));
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
+      {/* Top Admin Header */}
+      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-lg shadow-blue-500/10">
+            <Database className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                Icebreaker Admin
+              </h1>
+              <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full">
+                Portal v2.0
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 hidden sm:block">
+              Connected to MongoDB Atlas &bull; {totalQuestions} Questions Live
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition shadow-sm"
+          >
+            <span>Public App</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+
+          <button
+            onClick={handleLogout}
+            disabled={isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 bg-red-950/20 hover:bg-red-950/40 border border-red-800/40 rounded-xl transition shadow-sm"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Body */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 md:p-8 space-y-6">
+        {/* Navigation Tabs */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+          <button
+            onClick={() => setActiveTab('questions')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+              activeTab === 'questions'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Questions</span>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full ${
+                activeTab === 'questions' ? 'bg-blue-700 text-white' : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {totalQuestions}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+              activeTab === 'categories'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Categories</span>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full ${
+                activeTab === 'categories' ? 'bg-blue-700 text-white' : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {categories.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('types')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+              activeTab === 'types'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <MessageSquareQuote className="w-4 h-4" />
+            <span>Question Types</span>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full ${
+                activeTab === 'types' ? 'bg-blue-700 text-white' : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {types.length}
+            </span>
+          </button>
+        </div>
+
+        {/* TAB 1: QUESTIONS */}
+        {activeTab === 'questions' && (
+          <div className="space-y-4">
+            {/* Top Toolbar */}
+            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+              {/* Search & Filters */}
+              <div className="flex flex-1 flex-wrap gap-2 items-center">
+                {/* Search Bar */}
+                <div className="relative flex-1 min-w-[220px]">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by question text..."
+                    className="w-full pl-10 pr-4 py-2 bg-slate-900/90 border border-slate-700/80 rounded-xl text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-300"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Category Filter */}
+                <div className="min-w-[170px]">
+                  <SearchableDropdown
+                    label=""
+                    options={[
+                      { id: 'all', label: 'All Categories', iconName: 'Layers' },
+                      ...categories.map((c): DropdownOption => ({
+                        id: c.id,
+                        label: c.label,
+                        color: c.color,
+                        iconName: c.iconName,
+                      })),
+                    ]}
+                    value={selectedCategory}
+                    onChange={(val) => { setSelectedCategory(val); setPage(1); }}
+                    placeholder="All Categories"
+                    searchPlaceholder="Search category..."
+                  />
+                </div>
+
+                {/* Type Filter */}
+                <div className="min-w-[160px]">
+                  <SearchableDropdown
+                    label=""
+                    options={[
+                      { id: 'all', label: 'All Formats', iconName: 'MessageSquareQuote' },
+                      ...types.map((t): DropdownOption => ({
+                        id: t.id,
+                        label: t.label,
+                        iconName: t.iconName,
+                      })),
+                    ]}
+                    value={selectedType}
+                    onChange={(val) => { setSelectedType(val); setPage(1); }}
+                    placeholder="All Formats"
+                    searchPlaceholder="Search format..."
+                  />
+                </div>
+
+                {/* Refresh button */}
+                <button
+                  onClick={() => triggerReloadQuestions()}
+                  title="Reload questions"
+                  className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-slate-400 hover:text-white transition"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${isLoadingQuestions ? 'animate-spin text-blue-400' : ''}`}
+                  />
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setIsImportExportOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-200 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition"
+                >
+                  <DownloadCloud className="w-4 h-4 text-blue-400" />
+                  <span>Import / Export</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setEditingQuestion(null);
+                    setIsQuestionModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/30 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Question</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Bulk Action Bar (Visible when rows selected) */}
+            {selectedIds.length > 0 && (
+              <div className="flex items-center justify-between p-3 bg-blue-950/40 border border-blue-800/50 rounded-xl animate-fadeIn">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-blue-300">
+                    {selectedIds.length} question{selectedIds.length > 1 ? 's' : ''} selected
+                  </span>
+                  <button
+                    onClick={() => setSelectedIds([])}
+                    className="text-xs text-slate-400 hover:text-white underline transition"
+                  >
+                    Deselect all
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    setDeleteTarget({
+                      type: 'bulk_questions',
+                      title: `Delete ${selectedIds.length} Questions?`,
+                      message: `Are you sure you want to permanently delete these ${selectedIds.length} selected questions from the database? This action cannot be undone.`,
+                      count: selectedIds.length,
+                    });
+                    setIsDeleteModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-lg shadow transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Selected</span>
+                </button>
+              </div>
+            )}
+
+            {/* Questions Table */}
+            <div className="border border-slate-800 bg-slate-900/60 rounded-2xl overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-slate-300">
+                  <thead className="bg-slate-950/80 text-xs uppercase font-semibold text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th className="p-4 w-12 text-center">
+                        <button
+                          onClick={handleToggleSelectAllOnPage}
+                          className="text-slate-400 hover:text-white"
+                        >
+                          {isPageAllSelected ? (
+                            <CheckSquare className="w-4 h-4 text-blue-400" />
+                          ) : (
+                            <Square className="w-4 h-4" />
+                          )}
+                        </button>
+                      </th>
+                      <th className="p-4 w-20">
+                        <button
+                          onClick={() => handleToggleSort('id')}
+                          className="flex items-center gap-1.5 hover:text-white transition"
+                        >
+                          <span>ID</span>
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                        </button>
+                      </th>
+                      <th className="p-4">
+                        <button
+                          onClick={() => handleToggleSort('text')}
+                          className="flex items-center gap-1.5 hover:text-white transition"
+                        >
+                          <span>Question Text</span>
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                        </button>
+                      </th>
+                      <th className="p-4 w-52">Category</th>
+                      <th className="p-4 w-48">Format</th>
+                      <th className="p-4 w-40">Tags</th>
+                      <th className="p-4 w-28 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {isLoadingQuestions && questions.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-12 text-center text-slate-400">
+                          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                          Loading questions from database...
+                        </td>
+                      </tr>
+                    ) : questions.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-12 text-center text-slate-400">
+                          No questions found matching your search or filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      questions.map((q) => {
+                        const isSelected = selectedIds.includes(q.id);
+                        const catMeta = getCategoryMeta(q.category);
+                        const tMeta = getTypeMeta(q.type);
+
+                        return (
+                          <tr
+                            key={q.id}
+                            className={`transition hover:bg-slate-800/40 ${
+                              isSelected ? 'bg-blue-950/20' : ''
+                            }`}
+                          >
+                            {/* Checkbox */}
+                            <td className="p-4 text-center">
+                              <button
+                                onClick={() => handleToggleSelectRow(q.id)}
+                                className="text-slate-400 hover:text-white"
+                              >
+                                {isSelected ? (
+                                  <CheckSquare className="w-4 h-4 text-blue-400" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-slate-600 hover:text-slate-400" />
+                                )}
+                              </button>
+                            </td>
+
+                            {/* ID */}
+                            <td className="p-4 font-mono text-xs text-slate-400 font-semibold">
+                              #{q.id}
+                            </td>
+
+                            {/* Text */}
+                            <td className="p-4 text-slate-100 font-medium leading-relaxed max-w-md">
+                              {q.text}
+                            </td>
+
+                            {/* Category Badge */}
+                            <td className="p-4 whitespace-nowrap">
+                              <span
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border"
+                                style={{
+                                  backgroundColor: `${catMeta.color}15`,
+                                  borderColor: `${catMeta.color}35`,
+                                  color: catMeta.color,
+                                }}
+                              >
+                                <IconHelper name={catMeta.iconName} className="w-3.5 h-3.5" />
+                                {catMeta.label}
+                              </span>
+                            </td>
+
+                            {/* Type Pill */}
+                            <td className="p-4 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs text-slate-300 bg-slate-800/80 border border-slate-700/60">
+                                <IconHelper name={tMeta.iconName} className="w-3 h-3 text-blue-400" />
+                                {tMeta.label}
+                              </span>
+                            </td>
+
+                            {/* Tags */}
+                            <td className="p-4">
+                              <div className="flex flex-wrap gap-1 max-w-[180px]">
+                                {q.tags && q.tags.length > 0 ? (
+                                  q.tags.slice(0, 3).map((tag) => (
+                                    <span
+                                      key={tag}
+                                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400"
+                                    >
+                                      #{tag}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-xs text-slate-600">-</span>
+                                )}
+                                {q.tags && q.tags.length > 3 && (
+                                  <span className="text-[10px] text-slate-500 self-center">
+                                    +{q.tags.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="p-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setEditingQuestion(q);
+                                    setIsQuestionModalOpen(true);
+                                  }}
+                                  title="Edit question"
+                                  className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setDeleteTarget({
+                                      type: 'single_question',
+                                      id: q.id,
+                                      title: `Delete Question #${q.id}?`,
+                                      message: `Are you sure you want to delete question #${q.id}: "${q.text.slice(
+                                        0,
+                                        60
+                                      )}..."?`,
+                                    });
+                                    setIsDeleteModalOpen(true);
+                                  }}
+                                  title="Delete question"
+                                  className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Bar */}
+              <div className="p-4 bg-slate-950/80 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-xs text-slate-400">
+                  <span>
+                    Showing {Math.min(totalQuestions, (page - 1) * limit + 1)} -{' '}
+                    {Math.min(totalQuestions, page * limit)} of {totalQuestions} questions
+                  </span>
+
+                  <div className="flex items-center gap-1.5">
+                    <span>Rows:</span>
+                    {[10, 20, 50, 100].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => { setLimit(n); setPage(1); }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition ${
+                          limit === n
+                            ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
+                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+
+                  <span className="text-xs font-semibold px-2 text-slate-300">
+                    Page {page} of {totalPages}
+                  </span>
+
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: CATEGORIES */}
+        {activeTab === 'categories' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-white">Categories Management</h2>
+                <p className="text-xs text-slate-400">
+                  Customize themes, labels, colors, and visual identifiers
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setCatTypeMode('category');
+                  setEditingCatType(null);
+                  setIsCatTypeModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/30 transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Category</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categories.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="p-5 rounded-2xl border bg-slate-900/70 relative overflow-hidden flex flex-col justify-between transition hover:border-slate-600"
+                  style={{ borderColor: `${cat.color}35` }}
+                >
+                  <div>
+                    <div className="flex items-start justify-between mb-3">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm"
+                        style={{
+                          backgroundColor: `${cat.color}15`,
+                          borderColor: `${cat.color}40`,
+                          color: cat.color,
+                        }}
+                      >
+                        <IconHelper name={cat.iconName} className="w-5 h-5" />
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setCatTypeMode('category');
+                            setEditingCatType(cat);
+                            setIsCatTypeModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition"
+                          title="Edit Category"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeleteTarget({
+                              type: 'category',
+                              id: cat.id,
+                              title: `Delete Category "${cat.label}"?`,
+                              message: `Are you sure you want to delete category "${cat.id}"? Questions assigned to this category will keep their tag but the category metadata will be removed.`,
+                            });
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
+                          title="Delete Category"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <h3 className="text-base font-bold text-white mb-1">{cat.label}</h3>
+                    <p className="text-xs font-mono text-slate-500 mb-2">id: {cat.id}</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      {cat.description || 'No description provided.'}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Accent:</span>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3.5 h-3.5 rounded-full border border-slate-700"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                      <span className="font-mono text-slate-400">{cat.color}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: QUESTION TYPES */}
+        {activeTab === 'types' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-white">Question Formats & Types</h2>
+                <p className="text-xs text-slate-400">
+                  Define interaction rules and gameplay instructions for questions
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setCatTypeMode('type');
+                  setEditingCatType(null);
+                  setIsCatTypeModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/30 transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Question Type</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {types.map((t) => (
+                <div
+                  key={t.id}
+                  className="p-5 rounded-2xl border border-slate-800 bg-slate-900/70 hover:border-slate-700 transition flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                        <IconHelper name={t.iconName} className="w-5 h-5" />
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setCatTypeMode('type');
+                            setEditingCatType(t);
+                            setIsCatTypeModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition"
+                          title="Edit Type"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeleteTarget({
+                              type: 'type',
+                              id: t.id,
+                              title: `Delete Format "${t.label}"?`,
+                              message: `Are you sure you want to delete question format "${t.id}"?`,
+                            });
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
+                          title="Delete Type"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <h3 className="text-base font-bold text-white mb-1">{t.label}</h3>
+                    <p className="text-xs font-mono text-slate-500 mb-2">id: {t.id}</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      {t.hint || 'No interaction hint provided.'}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
+                    <span>Icon:</span>
+                    <span className="font-mono text-slate-400">{t.iconName}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* MODALS */}
+      <QuestionFormModal
+        isOpen={isQuestionModalOpen}
+        question={editingQuestion}
+        categories={categories}
+        types={types}
+        onClose={() => {
+          setIsQuestionModalOpen(false);
+          setEditingQuestion(null);
+        }}
+        onSubmit={handleSubmitQuestion}
+      />
+
+      <CategoryTypeModal
+        isOpen={isCatTypeModalOpen}
+        mode={catTypeMode}
+        initialData={editingCatType}
+        onClose={() => {
+          setIsCatTypeModalOpen(false);
+          setEditingCatType(null);
+        }}
+        onSubmitCategory={handleSubmitCategory}
+        onSubmitType={handleSubmitType}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        title={deleteTarget?.title || 'Confirm Deletion'}
+        message={deleteTarget?.message || 'Are you sure you want to proceed?'}
+        itemCount={deleteTarget?.count}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setDeleteTarget(null);
+        }}
+      />
+
+      <ImportExportModal
+        isOpen={isImportExportOpen}
+        onClose={() => setIsImportExportOpen(false)}
+        onImportSuccess={() => {
+          triggerReloadQuestions();
+          toast({ type: 'success', title: 'Import successful', description: 'Questions have been imported and the list has been refreshed.' });
+        }}
+      />
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+    </div>
+  );
+};

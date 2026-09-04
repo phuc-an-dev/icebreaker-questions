@@ -6,7 +6,8 @@ export type CategoryId =
   | 'relationship'
   | 'growth'
   | 'faith'
-  | 'game';
+  | 'game'
+  | (string & {});
 
 export type QuestionTypeId =
   | 'open'
@@ -22,7 +23,8 @@ export type QuestionTypeId =
   | 'chain'
   | 'writeguess'
   | 'debate'
-  | 'challenge';
+  | 'challenge'
+  | (string & {});
 
 export interface Question {
   id: number;
