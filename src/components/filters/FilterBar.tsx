@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom';
 import { FilterState, Question, QuestionTypeId } from '@/types/question';
 import { QUESTION_TYPES, TAG_LABELS } from '@/data/metadata';
 import { IconHelper } from '@/components/ui/IconHelper';
-import { fireConfetti } from '@/components/canvas/ConfettiBurst';
 import {
   Search,
   X,
@@ -97,7 +96,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   }, [allQuestions]);
 
   const handleRandomClick = () => {
-    fireConfetti({ count: 70 });
     onRandomDraw();
   };
 

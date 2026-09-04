@@ -8,7 +8,6 @@ import { HoloCanvasCard } from '@/components/canvas/HoloCanvasCard';
 import { StageCanvasBg } from '@/components/canvas/StageCanvasBg';
 import { TimerWidget } from '@/components/ui/TimerWidget';
 import { IconHelper } from '@/components/ui/IconHelper';
-import { fireConfetti } from '@/components/canvas/ConfettiBurst';
 import {
   X,
   ChevronLeft,
@@ -97,7 +96,6 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
       }
       if (e.key === ' ' && (e.target as HTMLElement).tagName !== 'BUTTON') {
         e.preventDefault();
-        fireConfetti({ count: 70 });
         setDirection(1);
         onRandom();
       }
@@ -122,7 +120,6 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
   };
 
   const handleRandomDraw = () => {
-    fireConfetti({ count: 80 });
     setDirection(1);
     onRandom();
   };

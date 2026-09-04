@@ -29,7 +29,7 @@ This document is the single source of truth for AI agents (Antigravity, Claude C
 - **Runtime / UI**: React 19, TypeScript 5
 - **Database**: MongoDB Atlas via official `mongodb` Node.js driver (v6.x)
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/postcss`)
-- **Animation & Effects**: `framer-motion`, `canvas-confetti`, `lucide-react`
+- **Animation & Effects**: `framer-motion`, `lucide-react`
 - **Linter**: ESLint 9 (`eslint-config-next`)
 
 ---
