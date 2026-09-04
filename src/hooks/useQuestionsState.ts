@@ -1,14 +1,11 @@
 'use client';
 
-import { useState, useMemo, useCallback, useSyncExternalStore } from 'react';
-import rawQuestions from '@/data/questions.json';
+import { useState, useMemo, useCallback, useSyncExternalStore, useEffect } from 'react';
 import { Question, CategoryId, QuestionTypeId, FilterState } from '@/types/question';
 import { stripAccents } from '@/lib/utils';
 
 const STORAGE_KEY_ASKED = 'icebreaker_asked_v2';
 const STORAGE_KEY_FAVORITES = 'icebreaker_favorites_v2';
-
-const allQuestions: Question[] = rawQuestions as Question[];
 
 const emptySubscribe = () => () => {};
 
@@ -22,8 +19,77 @@ function getInitialSet(key: string): Set<number> {
   }
 }
 
-export function useQuestionsState() {
+export function useQuestionsState(initialQuestions: Question[] = []) {
   const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
+  const hasInitialQuestions = initialQuestions && initialQuestions.length > 0;
+  const [fetchedQuestions, setFetchedQuestions] = useState<Question[]>([]);
+  const [isFetching, setIsFetching] = useState<boolean>(!hasInitialQuestions);
+  const [error, setError] = useState<string | null>(null);
+
+  const allQuestions = hasInitialQuestions ? initialQuestions : fetchedQuestions;
+  const isLoading = !hasInitialQuestions && isFetching;
+
+  const refetch = useCallback(() => {
+    setIsFetching(true);
+    setError(null);
+    fetch('/api/questions')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load questions from server');
+        return res.json();
+      })
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          setFetchedQuestions(data.data);
+          setError(null);
+        } else {
+          throw new Error(data.error || 'Invalid response data');
+        }
+      })
+      .catch((err) => {
+        setError(err.message || 'Database connection error');
+      })
+      .finally(() => {
+        setIsFetching(false);
+      });
+  }, []);
+
+  // Only fetch client-side if initialQuestions was not provided
+  useEffect(() => {
+    if (hasInitialQuestions) {
+      return;
+    }
+
+    let isMounted = true;
+    fetch('/api/questions')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load questions from server');
+        return res.json();
+      })
+      .then((data) => {
+        if (isMounted && data.success && Array.isArray(data.data)) {
+          setFetchedQuestions(data.data);
+          setError(null);
+        } else if (isMounted) {
+          throw new Error(data.error || 'Invalid response data');
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setError(err.message || 'Database connection error');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsFetching(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [hasInitialQuestions]);
+
   const [askedIds, setAskedIds] = useState<Set<number>>(() => getInitialSet(STORAGE_KEY_ASKED));
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(() => getInitialSet(STORAGE_KEY_FAVORITES));
 
@@ -178,7 +244,7 @@ export function useQuestionsState() {
       }
       return true;
     });
-  }, [filters, askedIds, favoriteIds]);
+  }, [allQuestions, filters, askedIds, favoriteIds]);
 
   // Pick a random question
   const getRandomQuestion = useCallback((): Question | null => {
@@ -200,6 +266,9 @@ export function useQuestionsState() {
 
   return {
     isClient,
+    isLoading,
+    error,
+    refetch,
     allQuestions,
     filteredQuestions,
     filters,
