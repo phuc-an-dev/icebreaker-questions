@@ -17,6 +17,7 @@ import {
   Presentation,
   RotateCcw,
   Check,
+  Loader2,
 } from 'lucide-react';
 
 interface FilterBarProps {
@@ -33,6 +34,7 @@ interface FilterBarProps {
   filteredCount: number;
   totalCount: number;
   allQuestions: Question[];
+  isSearching?: boolean;
 }
 
 const emptySubscribe = () => () => {};
@@ -51,6 +53,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   filteredCount,
   totalCount,
   allQuestions,
+  isSearching = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'types' | 'tags'>('types');
@@ -107,13 +110,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       <div className="flex items-center gap-2">
         {/* Search Input */}
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          {isSearching ? (
+            <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-blue-400" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          )}
           <input
             type="text"
             value={filters.search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search questions..."
-            className="h-10 w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-9 pr-8 text-sm text-slate-100 placeholder-slate-500 backdrop-blur-md transition-all focus:border-amber-400/60 focus:outline-none focus:ring-1 focus:ring-amber-400/40"
+            className="h-10 w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-9 pr-8 text-sm text-slate-100 placeholder-slate-500 backdrop-blur-md transition-all focus:border-blue-400/60 focus:outline-none focus:ring-1 focus:ring-blue-400/40"
           />
           {filters.search && (
             <button
@@ -131,7 +138,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           onClick={() => setIsModalOpen(true)}
           className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium backdrop-blur-md transition-all ${
             activeFiltersCount > 0
-              ? 'border-amber-400/60 bg-amber-400/20 text-amber-300 font-semibold'
+              ? 'border-blue-500/60 bg-blue-500/20 text-blue-300 font-semibold'
               : 'border-slate-800 bg-slate-900/80 text-slate-300 hover:border-slate-700'
           }`}
           title="Filter options"
@@ -139,7 +146,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <SlidersHorizontal className="h-3.5 w-3.5" />
           <span className="hidden xs:inline">Filters</span>
           {activeFiltersCount > 0 && (
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-slate-950">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
               {activeFiltersCount}
             </span>
           )}
@@ -151,13 +158,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-slate-900/90 px-3 text-slate-200 backdrop-blur-md transition-all hover:bg-slate-800"
           title="Presentation Mode"
         >
-          <Presentation className="h-4 w-4 text-amber-400" />
+          <Presentation className="h-4 w-4 text-blue-400" />
         </button>
 
         {/* Random Draw Button */}
         <button
           onClick={handleRandomClick}
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-3.5 text-xs font-semibold text-slate-950 shadow-md shadow-amber-500/20 active:scale-95"
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 px-3.5 text-xs font-semibold text-white shadow-md shadow-blue-500/25 active:scale-95 hover:brightness-110"
           title="Draw random question"
         >
           <Shuffle className="h-4 w-4" />
@@ -173,7 +180,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             onClick={() => onToggleHideAsked(!filters.hideAsked)}
             className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] transition-colors ${
               filters.hideAsked
-                ? 'border-amber-500/40 bg-amber-500/15 text-amber-300 font-medium'
+                ? 'border-blue-500/40 bg-blue-500/15 text-blue-300 font-medium'
                 : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
             }`}
           >
@@ -186,7 +193,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             onClick={() => onToggleOnlyFavorites(!filters.onlyFavorites)}
             className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] transition-colors ${
               filters.onlyFavorites
-                ? 'border-amber-500/40 bg-amber-500/15 text-amber-300 font-medium'
+                ? 'border-blue-500/40 bg-blue-500/15 text-blue-300 font-medium'
                 : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
             }`}
           >
@@ -208,7 +215,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
         {/* Result Counter */}
         <span className="shrink-0 font-mono text-[11px] text-slate-400 pl-1">
-          <span className="font-bold text-amber-300">{filteredCount}</span>/{totalCount}
+          <span className="font-bold text-blue-400">{filteredCount}</span>/{totalCount}
         </span>
       </div>
 
@@ -225,7 +232,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               {/* Header (Always pinned at top of modal) */}
               <div className="shrink-0 flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4 text-amber-400" />
+                  <SlidersHorizontal className="h-4 w-4 text-blue-400" />
                   <h3 className="text-base font-bold text-white">Filter Options</h3>
                 </div>
                 <button
@@ -243,7 +250,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   onClick={() => setActiveTab('types')}
                   className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
                     activeTab === 'types'
-                      ? 'bg-amber-400 text-slate-950 shadow-sm'
+                      ? 'bg-blue-600 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -254,7 +261,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   onClick={() => setActiveTab('tags')}
                   className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
                     activeTab === 'tags'
-                      ? 'bg-amber-400 text-slate-950 shadow-sm'
+                      ? 'bg-blue-600 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -325,7 +332,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-md transition-all hover:bg-amber-300"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 transition-all hover:brightness-110"
                 >
                   <span>View {filteredCount} questions</span>
                 </button>

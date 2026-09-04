@@ -26,6 +26,7 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
   const {
     isClient,
     isLoading,
+    isSearching,
     error,
     refetch,
     allQuestions,
@@ -129,7 +130,7 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
     <main className="relative min-h-screen bg-[#070b12] text-slate-100 pb-28 sm:pb-32">
       {/* Ambient Hero Canvas particles */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[450px] overflow-hidden opacity-40">
-        <StageCanvasBg primaryColor="#f59e0b" particleCount={30} />
+        <StageCanvasBg primaryColor="#3b82f6" particleCount={30} />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#070b12]/80 to-[#070b12]" />
       </div>
 
@@ -137,8 +138,8 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
       <div className="relative z-10 mx-auto max-w-7xl px-3.5 py-5 sm:px-6 lg:px-8">
         {/* Header */}
         <header className="mb-5 sm:mb-8 flex flex-col items-center text-center">
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] sm:text-xs font-semibold text-amber-300 backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[11px] sm:text-xs font-semibold text-blue-300 backdrop-blur-md">
+            <Sparkles className="h-3.5 w-3.5 text-blue-400" />
             <span>
               {isLoading
                 ? 'Loading...'
@@ -148,7 +149,7 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
 
           <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
             Icebreaker{' '}
-            <span className="bg-gradient-to-r from-amber-400 via-rose-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">
               Question Bank
             </span>
           </h1>
@@ -173,7 +174,7 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
             {filters.categories.length > 0 && (
               <button
                 onClick={handleClearAllCategories}
-                className="text-[11px] text-amber-400 hover:underline"
+                className="text-[11px] text-blue-400 hover:underline"
               >
                 Clear filter
               </button>
@@ -189,9 +190,17 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
 
         {/* Question Cards Grid */}
         <section className="mb-14">
+          {/* Searching debounce loading banner */}
+          {isSearching && (
+            <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 py-2 px-4 text-xs font-semibold text-blue-300 backdrop-blur-md animate-pulse">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+              <span>Filtering questions...</span>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 px-4 py-20 text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+              <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
               <p className="mt-3 text-sm text-slate-400">Loading questions from MongoDB Atlas...</p>
             </div>
           ) : error && allQuestions.length === 0 ? (
@@ -226,14 +235,18 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
               </p>
               <button
                 onClick={resetFilters}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-3.5 py-1.5 text-xs font-semibold text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-blue-500/20 px-3.5 py-1.5 text-xs font-semibold text-blue-300 border border-blue-500/40 hover:bg-blue-500/30"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 <span>Reset all filters</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 transition-opacity duration-200 ${
+                isSearching ? 'opacity-60 pointer-events-none' : 'opacity-100'
+              }`}
+            >
               {filteredQuestions.map((q) => {
                 const isHighlight = highlightedId === q.id;
                 return (
@@ -245,7 +258,7 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
                     }}
                     className={`transition-all duration-500 rounded-2xl ${
                       isHighlight
-                        ? 'ring-4 ring-amber-400 scale-[1.02] shadow-2xl shadow-amber-500/50'
+                        ? 'ring-4 ring-blue-500 scale-[1.02] shadow-2xl shadow-blue-500/50'
                         : ''
                     }`}
                   >
@@ -267,7 +280,7 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
         {/* Footer */}
         <footer className="border-t border-slate-800/80 pt-6 pb-6 text-center text-xs text-slate-500">
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <Compass className="h-3.5 w-3.5 text-amber-400" />
+            <Compass className="h-3.5 w-3.5 text-blue-400" />
             <span>Icebreaker Question Bank — {allQuestions.length} Questions</span>
           </div>
           <p className="mt-1 text-slate-600">
@@ -306,6 +319,7 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
           filteredCount={filteredQuestions.length}
           totalCount={allQuestions.length}
           allQuestions={allQuestions}
+          isSearching={isSearching}
         />
       </aside>
 

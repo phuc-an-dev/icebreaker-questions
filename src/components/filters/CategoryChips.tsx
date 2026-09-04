@@ -39,7 +39,7 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
         onClick={() => onClearCategories && onClearCategories()}
         className={`group shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
           isAllSelected
-            ? 'border border-amber-400/80 bg-amber-400/20 text-white shadow-sm ring-1 ring-amber-400/40'
+            ? 'border border-blue-500/80 bg-blue-500/20 text-white shadow-sm ring-1 ring-blue-400/40'
             : 'border border-slate-800 bg-slate-900/70 text-slate-400 hover:border-slate-700 hover:text-white'
         }`}
       >

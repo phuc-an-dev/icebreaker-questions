@@ -119,7 +119,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             cy={radius + strokeWidth}
             r={radius}
             className={`transition-all duration-500 ease-linear ${
-              isUrgent ? 'stroke-rose-500' : 'stroke-amber-400'
+              isUrgent ? 'stroke-rose-500' : 'stroke-blue-400'
             }`}
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
@@ -155,7 +155,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 onClick={() => resetTimer(s)}
                 className={`rounded px-1.5 py-0.5 text-[10px] transition-colors ${
                   totalSeconds === s
-                    ? 'bg-amber-400/20 text-amber-300 font-semibold'
+                    ? 'bg-blue-500/20 text-blue-300 font-semibold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -172,7 +172,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
           onClick={toggleTimer}
           className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
             isRunning
-              ? 'border-amber-500/40 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+              ? 'border-blue-500/40 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
               : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
           }`}
           title={isRunning ? 'Pause' : 'Start'}

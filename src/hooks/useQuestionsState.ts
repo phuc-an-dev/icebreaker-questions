@@ -27,6 +27,11 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
   const [isFetching, setIsFetching] = useState<boolean>(!hasInitialQuestions);
   const [error, setError] = useState<string | null>(null);
 
+  // Debounced search state
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
   const allQuestions = hasInitialQuestions ? initialQuestions : fetchedQuestions;
   const isLoading = !hasInitialQuestions && isFetching;
 
@@ -89,6 +94,20 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
       isMounted = false;
     };
   }, [hasInitialQuestions]);
+
+  // Debounce search input (400ms)
+  useEffect(() => {
+    if (!searchInput) return;
+
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setIsSearching(false);
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchInput]);
 
   const [askedIds, setAskedIds] = useState<Set<number>>(() => getInitialSet(STORAGE_KEY_ASKED));
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(() => getInitialSet(STORAGE_KEY_FAVORITES));
@@ -188,7 +207,14 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
   }, []);
 
   const setSearch = useCallback((search: string) => {
+    setSearchInput(search);
     setFilters((prev) => ({ ...prev, search }));
+    if (!search) {
+      setDebouncedSearch('');
+      setIsSearching(false);
+    } else {
+      setIsSearching(true);
+    }
   }, []);
 
   const setHideAsked = useCallback((hideAsked: boolean) => {
@@ -200,6 +226,9 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
   }, []);
 
   const resetFilters = useCallback(() => {
+    setSearchInput('');
+    setDebouncedSearch('');
+    setIsSearching(false);
     setFilters({
       categories: [],
       types: [],
@@ -212,7 +241,7 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
 
   // Filter logic
   const filteredQuestions = useMemo(() => {
-    const normalizedSearch = stripAccents(filters.search);
+    const normalizedSearch = stripAccents(debouncedSearch);
 
     return allQuestions.filter((q) => {
       // Category filter
@@ -244,7 +273,17 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
       }
       return true;
     });
-  }, [allQuestions, filters, askedIds, favoriteIds]);
+  }, [
+    allQuestions,
+    filters.categories,
+    filters.types,
+    filters.tags,
+    filters.hideAsked,
+    filters.onlyFavorites,
+    debouncedSearch,
+    askedIds,
+    favoriteIds,
+  ]);
 
   // Pick a random question
   const getRandomQuestion = useCallback((): Question | null => {
@@ -267,6 +306,8 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
   return {
     isClient,
     isLoading,
+    isSearching,
+    debouncedSearch,
     error,
     refetch,
     allQuestions,

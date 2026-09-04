@@ -37,7 +37,7 @@ export const StatsBar: React.FC<StatsBarProps> = ({
         <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-6">
           {/* Total Questions */}
           <div className="flex items-center gap-2 sm:gap-3 rounded-xl bg-white/[0.02] p-2 sm:p-0 sm:bg-transparent">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg sm:rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-400">
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg sm:rounded-xl border border-blue-500/20 bg-blue-500/10 text-blue-400">
               <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="min-w-0">

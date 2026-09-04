@@ -87,8 +87,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           {/* Dedicated Question Type & Full Instruction Banner (No truncation, no awkward wraps) */}
           {typeMeta && (
             <div className="mb-3.5 rounded-xl border border-white/5 bg-white/[0.03] p-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-300/90 whitespace-nowrap">
-                <IconHelper name={typeMeta.iconName} className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-300/90 whitespace-nowrap">
+                <IconHelper name={typeMeta.iconName} className="h-3.5 w-3.5 shrink-0 text-blue-400" />
                 <span>{typeMeta.label}</span>
               </div>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
@@ -98,7 +98,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           )}
 
           {/* Question Main Text */}
-          <p className="text-base font-medium leading-relaxed text-slate-100 selection:bg-amber-400/30">
+          <p className="text-base font-medium leading-relaxed text-slate-100 selection:bg-blue-500/30">
             {question.text}
           </p>
         </div>

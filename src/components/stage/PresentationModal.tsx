@@ -224,8 +224,8 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
                   {/* Dedicated Question Type & Instruction Banner */}
                   {typeMeta && (
                     <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                      <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-amber-300">
-                        <IconHelper name={typeMeta.iconName} className="h-4 w-4 shrink-0 text-amber-400" />
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-blue-300">
+                        <IconHelper name={typeMeta.iconName} className="h-4 w-4 shrink-0 text-blue-400" />
                         <span>{typeMeta.label}</span>
                       </div>
                       <p className="mt-1 text-xs text-slate-300 leading-relaxed">
@@ -235,7 +235,7 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
                   )}
 
                   {/* Main Question Text */}
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold leading-relaxed tracking-tight text-white selection:bg-amber-400/40">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold leading-relaxed tracking-tight text-white selection:bg-blue-500/30">
                     {question.text}
                   </h2>
                 </div>
@@ -320,7 +320,7 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
 
         <button
           onClick={handleRandomDraw}
-          className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-5 font-semibold text-xs sm:text-sm text-slate-950 shadow-lg shadow-amber-500/20 transition-all active:scale-95 hover:brightness-110"
+          className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 px-5 font-semibold text-xs sm:text-sm text-white shadow-lg shadow-blue-500/25 transition-all active:scale-95 hover:brightness-110"
           title="Draw random question"
         >
           <Shuffle className="h-4 w-4" />
