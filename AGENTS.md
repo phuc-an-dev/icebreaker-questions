@@ -121,7 +121,44 @@ This document is the single source of truth for AI agents (Antigravity, Claude C
    - When `label=""` is passed, the label row is visually hidden, making it suitable for compact filter bars.
    - For small fixed sets of options where search is not meaningful (e.g. rows-per-page: 10/20/50/100), use an inline **button group** instead of `SearchableDropdown`.
 
+8. **Motion Tokens & Spring Physics Standard (`@/lib/motion.ts`)**:
+   - Arbitrary, hardcoded cubic-bezier easing strings and ad-hoc duration numbers are prohibited in framer-motion animations.
+   - Always use physics-based spring tokens exported from `@/lib/motion.ts`:
+     - `SPRING_PHYSICS.snappy`: For high-frequency micro-interactions (buttons, filter chips, heart/check icons).
+     - `SPRING_PHYSICS.modal`: For responsive bottom sheets and dialog transitions.
+     - `SPRING_PHYSICS.gentle`: For card hover-tilt, presentation card reveals, and large surfaces.
+   - For gesture dismissals, use `DRAG_CONFIG` (`DISMISS_THRESHOLD_Y: 120`, `DISMISS_VELOCITY_Y: 500`) and the helper `shouldDismissSheet(info)`.
+   - Shared animation variants (`BACKDROP_VARIANTS`, `BOTTOM_SHEET_VARIANTS`, `FADE_IN_SCALE_VARIANTS`) must be reused across components instead of redefining them locally.
+
+9. **Mandatory Modal & Bottom Sheet Architecture (`@/components/ui/ModalShell`)**:
+   - The native HTML `<dialog>` or ad-hoc custom overlay wrappers (`fixed inset-0 ...`) are **prohibited** for modals. Every dialog, filter panel, confirm dialog, or bottom drawer **MUST** use `<ModalShell>`.
+   - **Never wrap `<ModalShell>` with `{isOpen && <ModalShell />}` or an outer `<AnimatePresence>`**: Always pass `isOpen={isOpen}` directly to `<ModalShell>`. Wrapping with conditional rendering destroys the component synchronously on close, preventing the exit slide-down animation from playing.
+   - `<ModalShell>` standardizes:
+     - Responsive behavior: Slides up as a physics-driven bottom sheet on mobile (`< sm`) and scales in as a centered dialog on desktop (`>= sm`).
+     - Gestures: Drag-to-dismiss on mobile with dynamic rubber-banding, velocity-aware release, and tactile haptics.
+     - Smooth exit slide-down: Accelerates downward via `[0.32, 0.72, 0, 1]` easing before unmounting.
+     - Accessibility: `Escape` key capture, focus preservation, and body scroll locking (`document.body.style.overflow = 'hidden'`).
+     - Portaling: Always renders to `document.body` via React Portal to prevent CSS z-index stacking and parent clipping bugs.
+
+10. **Mobile Gesture Conflict Prevention (Drag vs Scroll)**:
+   - When building mobile drawers or bottom sheets, never bind drag listeners directly to the scrollable content container.
+   - Use `drag="y"`, `dragListener={false}`, and delegate dragging to `dragControls.start(event)` on the drag handle / header (`touch-none select-none`).
+   - Scrollable content containers inside sheets must have `overflow-y-auto` and undisturbed touch scrolling.
+
+11. **Haptic Feedback Standard (`@/lib/haptics.ts`)**:
+   - Use `hapticFeedback` (`light()`, `medium()`, `success()`, `warning()`) on tactile user interactions:
+     - `light()`: Chip toggles, filter selections, tab switches, drag-handle touches.
+     - `medium()`: Favorite toggle, marked-as-asked toggle, modal open/close actions.
+     - `success()`: Successful form submission, question creation/edit, import completed.
+     - `warning()`: Destructive delete actions, validation errors.
+   - `hapticFeedback` is SSR-safe, debounced, and gracefully no-ops on unsupported devices.
+
+12. **Numerical Counter Animation Standard (`@/hooks/useCountUp`)**:
+   - Number displays and statistics (such as questions count, favorites count, progress percentages) must animate smoothly using `useCountUp(value, 600)`.
+   - Utilizes `requestAnimationFrame` with `easeOutExpo` easing for seamless 60fps transitions without stutter.
+
 ---
+
 
 ## 6. Common Commands
 
