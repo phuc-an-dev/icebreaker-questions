@@ -1,19 +1,117 @@
 @import "tailwindcss";
 
+/* ============================================
+   THEME DESIGN TOKENS
+   Light mode values are the :root defaults.
+   Dark mode values override via the .dark class.
+   ============================================ */
+
+/* ---------- Light Mode (Default) ---------- */
 :root {
+  /* Surfaces */
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-elevated: #f1f5f9;
+  --bg-input: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --bg-glass-heavy: rgba(255, 255, 255, 0.95);
+
+  /* Text */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverted: #f8fafc;
+
+  /* Borders */
+  --border-default: #e2e8f0;
+  --border-subtle: #f1f5f9;
+  --border-strong: #cbd5e1;
+
+  /* Overlays */
+  --overlay-backdrop: rgba(0, 0, 0, 0.25);
+
+  /* Hero gradient (body background-image) */
+  --gradient-hero-1: radial-gradient(1200px 700px at 50% -10%, #dbeafe 0%, #f8fafc 60%);
+  --gradient-hero-2: radial-gradient(800px 500px at 80% 80%, #e0f2fe 0%, transparent 50%);
+
+  /* Canvas fade overlay (transparent → bg-main) */
+  --bg-main-faded: rgba(248, 250, 252, 0.8);
+
+  /* Scrollbar */
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+
+  /* Canvas particles */
+  --canvas-particle-opacity: 0.35;
+}
+
+/* ---------- Dark Mode ---------- */
+.dark {
   --bg-main: #070b12;
   --bg-card: #0d1522;
-  --border-card: rgba(255, 255, 255, 0.08);
+  --bg-elevated: #111827;
+  --bg-input: #0f172a;
+  --bg-glass: rgba(15, 23, 42, 0.9);
+  --bg-glass-heavy: rgba(2, 6, 12, 0.95);
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverted: #0f172a;
+
+  --border-default: #1e293b;
+  --border-subtle: #111827;
+  --border-strong: #334155;
+
+  --overlay-backdrop: rgba(0, 0, 0, 0.75);
+
+  --gradient-hero-1: radial-gradient(1200px 700px at 50% -10%, #152238 0%, #070b12 60%);
+  --gradient-hero-2: radial-gradient(800px 500px at 80% 80%, #0f192b 0%, transparent 50%);
+
+  --bg-main-faded: rgba(7, 11, 18, 0.8);
+
+  --scrollbar-track: #090e17;
+  --scrollbar-thumb: #1e293b;
+  --scrollbar-thumb-hover: #334155;
+
+  --canvas-particle-opacity: 0.6;
 }
+
+/* ============================================
+   TAILWIND v4 THEME REGISTRATION
+   @theme inline preserves var() references at
+   runtime so utilities respond to .dark toggling.
+   ============================================ */
+@theme inline {
+  /* Surface utilities: bg-surface, bg-surface-card, etc. */
+  --color-surface: var(--bg-main);
+  --color-surface-card: var(--bg-card);
+  --color-surface-elevated: var(--bg-elevated);
+  --color-surface-input: var(--bg-input);
+
+  /* Text utilities: text-content, text-content-secondary, etc. */
+  --color-content: var(--text-primary);
+  --color-content-secondary: var(--text-secondary);
+  --color-content-muted: var(--text-muted);
+  --color-content-inverted: var(--text-inverted);
+
+  /* Border utilities: border-edge, border-edge-subtle, etc. */
+  --color-edge: var(--border-default);
+  --color-edge-subtle: var(--border-subtle);
+  --color-edge-strong: var(--border-strong);
+}
+
+/* ============================================
+   GLOBAL BASE STYLES
+   ============================================ */
 
 body {
   background-color: var(--bg-main);
-  color: #f1f5f9;
+  color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
-  background-image: 
-    radial-gradient(1200px 700px at 50% -10%, #152238 0%, #070b12 60%),
-    radial-gradient(800px 500px at 80% 80%, #0f192b 0%, transparent 50%);
+  background-image: var(--gradient-hero-1), var(--gradient-hero-2);
   min-height: 100vh;
 }
 
@@ -24,17 +122,44 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #090e17;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--scrollbar-thumb-hover);
 }
+
+/* ============================================
+   THEME TRANSITION ANIMATION
+   Applied temporarily when toggling themes to
+   prevent jarring instant color swaps.
+   ============================================ */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 0.3s ease,
+    color 0.2s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    background-image 0.3s ease !important;
+  transition-delay: 0s !important;
+}
+
+/* Exclude canvas elements from theme transition */
+html.theme-transitioning canvas {
+  transition: none !important;
+}
+
+/* ============================================
+   UTILITY ANIMATIONS
+   ============================================ */
 
 /* Shimmer Keyframe */
 @keyframes shimmer-sweep {
@@ -56,4 +181,3 @@ body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
-
