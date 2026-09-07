@@ -15,6 +15,7 @@ interface StatsBarProps {
   askedCount: number;
   favoriteCount: number;
   onResetAsked: () => void;
+  compact?: boolean;
 }
 
 export const StatsBar: React.FC<StatsBarProps> = ({
@@ -22,6 +23,7 @@ export const StatsBar: React.FC<StatsBarProps> = ({
   askedCount,
   favoriteCount,
   onResetAsked,
+  compact = false,
 }) => {
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -36,6 +38,77 @@ export const StatsBar: React.FC<StatsBarProps> = ({
     onResetAsked();
     setShowConfirm(false);
   };
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-2xl border border-edge bg-surface-card/90 px-3 py-2 backdrop-blur-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transition-all text-xs">
+        {/* Total */}
+        <div className="flex items-center gap-1.5" title="Total Questions">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10 text-blue-500 dark:text-blue-400">
+            <HelpCircle className="h-3.5 w-3.5" />
+          </div>
+          <span className="font-mono font-bold text-content">{animatedTotal}</span>
+        </div>
+
+        <div className="h-4 w-px bg-edge" />
+
+        {/* Asked */}
+        <div className="flex items-center gap-1.5" title="Asked Questions">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          </div>
+          <span className="font-mono font-bold text-emerald-500 dark:text-emerald-400">
+            {animatedAsked}
+            <span className="text-[10px] text-content-muted font-normal ml-0.5">({percentage}%)</span>
+          </span>
+        </div>
+
+        <div className="h-4 w-px bg-edge" />
+
+        {/* Favorites */}
+        <div className="flex items-center gap-1.5" title="Favorite Questions">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-500 dark:text-rose-400">
+            <Bookmark className="h-3.5 w-3.5" fill="currentColor" />
+          </div>
+          <span className="font-mono font-bold text-rose-500 dark:text-rose-400">{animatedFavorite}</span>
+        </div>
+
+        {/* Reset asked button */}
+        {askedCount > 0 && (
+          <>
+            <div className="h-4 w-px bg-edge" />
+            {!showConfirm ? (
+              <button
+                onClick={() => {
+                  hapticFeedback.warning();
+                  setShowConfirm(true);
+                }}
+                title="Reset asked questions"
+                className="text-content-muted hover:text-rose-500 transition-colors p-1 rounded-lg hover:bg-rose-500/10"
+              >
+                <RotateCcw className="h-3 w-3" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <button
+                  onClick={handleConfirmReset}
+                  className="rounded bg-rose-500 px-1.5 py-0.5 font-semibold text-white hover:bg-rose-600"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="text-content-muted hover:text-content"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-edge bg-surface-card/60 p-3 sm:p-4 backdrop-blur-xl transition-all">

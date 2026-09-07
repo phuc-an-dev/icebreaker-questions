@@ -23,6 +23,7 @@ interface SearchableDropdownProps {
   placeholder?: string;
   searchPlaceholder?: string;
   disabled?: boolean;
+  showOptionId?: boolean;
 }
 
 interface DropdownPosition {
@@ -43,6 +44,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   placeholder = 'Select an option...',
   searchPlaceholder = 'Search...',
   disabled = false,
+  showOptionId = false,
 }) => {
   const dropdownId = useId();
   const listboxId = `${dropdownId}-listbox`;
@@ -288,13 +290,13 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         disabled={disabled}
         onClick={() => (isOpen ? closeDropdown(false) : openDropdown())}
         onKeyDown={handleTriggerKeyDown}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-surface-input border rounded-xl text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+        className={`w-full flex items-center justify-between px-3 py-2 bg-surface-card border rounded-xl text-left text-xs sm:text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
           isOpen
             ? 'border-blue-500 ring-2 ring-blue-500/30'
-            : 'border-edge-strong hover:border-edge-strong/80'
+            : 'border-edge-strong/80 hover:border-edge-strong'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       >
-        <div className="flex items-center gap-2.5 overflow-hidden">
+        <div className="flex items-center gap-2 overflow-hidden min-w-0">
           {selectedOption ? (
             <>
               {selectedOption.iconName && (
@@ -310,10 +312,12 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                 </div>
               )}
               <span className="text-content font-medium truncate">{selectedOption.label}</span>
-              <span className="text-xs text-content-muted font-mono shrink-0">({selectedOption.id})</span>
+              {showOptionId && (
+                <span className="text-xs text-content-muted font-mono shrink-0">({selectedOption.id})</span>
+              )}
             </>
           ) : (
-            <span className="text-content-muted">{placeholder}</span>
+            <span className="text-content-muted truncate">{placeholder}</span>
           )}
         </div>
         <ChevronDown
@@ -404,7 +408,9 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                         <div className="truncate">
                           <div className="font-semibold text-content flex items-center gap-1.5">
                             <span>{opt.label}</span>
-                            <span className="text-[10px] text-content-muted font-mono">({opt.id})</span>
+                            {showOptionId && (
+                              <span className="text-[10px] text-content-muted font-mono">({opt.id})</span>
+                            )}
                           </div>
                           {opt.sublabel && (
                             <p className="text-[11px] text-content-muted truncate mt-0.5">{opt.sublabel}</p>

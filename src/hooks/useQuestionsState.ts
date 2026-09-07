@@ -116,6 +116,7 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
     categories: [],
     types: [],
     tags: [],
+    author: 'all',
     search: '',
     hideAsked: false,
     onlyFavorites: false,
@@ -225,6 +226,22 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
     setFilters((prev) => ({ ...prev, onlyFavorites }));
   }, []);
 
+  const setAuthor = useCallback((author?: string) => {
+    setFilters((prev) => ({ ...prev, author: prev.author === author ? 'all' : author }));
+  }, []);
+
+  const clearCategories = useCallback(() => {
+    setFilters((prev) => ({ ...prev, categories: [] }));
+  }, []);
+
+  const clearTypes = useCallback(() => {
+    setFilters((prev) => ({ ...prev, types: [] }));
+  }, []);
+
+  const clearTags = useCallback(() => {
+    setFilters((prev) => ({ ...prev, tags: [] }));
+  }, []);
+
   const resetFilters = useCallback(() => {
     setSearchInput('');
     setDebouncedSearch('');
@@ -233,11 +250,30 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
       categories: [],
       types: [],
       tags: [],
+      author: 'all',
       search: '',
       hideAsked: false,
       onlyFavorites: false,
     });
   }, []);
+
+  // Compute question count by author
+  const authorFrequencies = useMemo(() => {
+    const counts: Record<string, { id: string; name: string; count: number }> = {};
+    for (const q of allQuestions) {
+      const authorId = q.createdBy?.adminId || 'system';
+      const authorName = q.createdBy?.name || 'System';
+      if (!counts[authorId]) {
+        counts[authorId] = { id: authorId, name: authorName, count: 0 };
+      }
+      counts[authorId].count++;
+    }
+    return Object.values(counts).sort((a, b) => {
+      if (a.id === 'system') return -1;
+      if (b.id === 'system') return 1;
+      return b.count - a.count;
+    });
+  }, [allQuestions]);
 
   // Filter logic
   const filteredQuestions = useMemo(() => {
@@ -264,6 +300,13 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
       if (filters.onlyFavorites && !favoriteIds.has(q.id)) {
         return false;
       }
+      // Author filter
+      if (filters.author && filters.author !== 'all') {
+        const qAuthor = q.createdBy?.adminId || 'system';
+        if (qAuthor !== filters.author) {
+          return false;
+        }
+      }
       // Search term
       if (normalizedSearch) {
         const textNorm = stripAccents(q.text);
@@ -278,6 +321,7 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
     filters.categories,
     filters.types,
     filters.tags,
+    filters.author,
     filters.hideAsked,
     filters.onlyFavorites,
     debouncedSearch,
@@ -299,6 +343,7 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
     filters.categories.length +
     filters.types.length +
     filters.tags.length +
+    (filters.author && filters.author !== 'all' ? 1 : 0) +
     (filters.hideAsked ? 1 : 0) +
     (filters.onlyFavorites ? 1 : 0) +
     (filters.search.trim().length > 0 ? 1 : 0);
@@ -316,12 +361,17 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
     askedIds,
     favoriteIds,
     activeFiltersCount,
+    authorFrequencies,
     toggleAsked,
     toggleFavorite,
     resetAsked,
     toggleCategory,
+    clearCategories,
     toggleType,
+    clearTypes,
     toggleTag,
+    clearTags,
+    setAuthor,
     setSearch,
     setHideAsked,
     setOnlyFavorites,

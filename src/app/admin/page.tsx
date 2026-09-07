@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerCurrentAdmin } from '@/lib/auth';
 import { getCategoriesWithDefaults, getQuestionTypesWithDefaults } from '@/lib/db-questions';
+import { getAllAdmins } from '@/lib/db-admins';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { Metadata } from 'next';
 
@@ -17,9 +18,10 @@ export default async function AdminPage() {
     redirect('/admin/login');
   }
 
-  const [categories, types] = await Promise.all([
+  const [categories, types, admins] = await Promise.all([
     getCategoriesWithDefaults(),
     getQuestionTypesWithDefaults(),
+    getAllAdmins(),
   ]);
 
   return (
@@ -27,6 +29,7 @@ export default async function AdminPage() {
       currentAdmin={currentAdmin}
       initialCategories={categories}
       initialTypes={types}
+      initialAdmins={admins}
     />
   );
 }

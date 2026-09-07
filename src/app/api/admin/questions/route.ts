@@ -20,8 +20,9 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search') || '';
   const category = searchParams.get('category') || undefined;
   const type = searchParams.get('type') || undefined;
-  const sortBy = (searchParams.get('sortBy') as 'id' | 'text' | 'category' | 'type') || 'id';
-  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc';
+  const author = searchParams.get('author') || undefined;
+  const sortBy = (searchParams.get('sortBy') as 'id' | 'text' | 'category' | 'type' | 'updatedAt') || 'updatedAt';
+  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc';
 
   try {
     const result = await getAdminQuestions({
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
       search,
       category,
       type,
+      author,
       sortBy,
       sortOrder,
     });

@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useQuestionsState } from '@/hooks/useQuestionsState';
 import { Question } from '@/types/question';
 import { QuestionCard } from '@/components/cards/QuestionCard';
-import { CategoryChips } from '@/components/filters/CategoryChips';
+import { InlineFilters } from '@/components/filters/InlineFilters';
 import { FilterBar } from '@/components/filters/FilterBar';
 import { PresentationModal } from '@/components/stage/PresentationModal';
 import { StatsBar } from '@/components/ui/StatsBar';
@@ -39,12 +39,17 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
     askedIds,
     favoriteIds,
     activeFiltersCount,
+    authorFrequencies,
     toggleAsked,
     toggleFavorite,
     resetAsked,
     toggleCategory,
+    clearCategories,
     toggleType,
+    clearTypes,
     toggleTag,
+    clearTags,
+    setAuthor,
     setSearch,
     setHideAsked,
     setOnlyFavorites,
@@ -129,11 +134,6 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleClearAllCategories = () => {
-    hapticFeedback.light();
-    filters.categories.forEach((c) => toggleCategory(c));
-  };
-
   return (
     <main className="relative min-h-screen bg-surface text-content pb-28 sm:pb-32">
       {/* Ambient Hero Canvas particles */}
@@ -178,41 +178,28 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
           </h1>
         </header>
 
-        {/* Stats bar */}
-        <section className="mb-5 sm:mb-6">
-          <StatsBar
-            totalCount={allQuestions.length}
-            askedCount={isClient ? askedIds.size : 0}
-            favoriteCount={isClient ? favoriteIds.size : 0}
-            onResetAsked={resetAsked}
-          />
-        </section>
-
-        {/* Category Chips section (Swipeable on Mobile) */}
-        <section className="mb-5 sm:mb-6">
-          <div className="mb-1.5 flex items-center justify-between px-0.5">
-            <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-content-muted">
-              Categories {filters.categories.length > 0 && `(${filters.categories.length})`}
-            </span>
-            {filters.categories.length > 0 && (
-              <button
-                onClick={handleClearAllCategories}
-                className="text-[11px] text-blue-500 dark:text-blue-400 hover:underline"
-              >
-                Clear filter
-              </button>
-            )}
-          </div>
-          <CategoryChips
-            selectedCategories={filters.categories}
-            onToggleCategory={toggleCategory}
-            onClearCategories={handleClearAllCategories}
-            questions={allQuestions}
-          />
-        </section>
+        {/* Inline Filters Panel: Categories, Authors, Question Types, Topics & Tags */}
+        <InlineFilters
+          selectedCategories={filters.categories}
+          onToggleCategory={toggleCategory}
+          onClearCategories={clearCategories}
+          selectedAuthor={filters.author}
+          onSelectAuthor={setAuthor}
+          authorFrequencies={authorFrequencies}
+          selectedTypes={filters.types}
+          onToggleType={toggleType}
+          onClearTypes={clearTypes}
+          selectedTags={filters.tags}
+          onToggleTag={toggleTag}
+          onClearTags={clearTags}
+          questions={allQuestions}
+          onResetAll={resetFilters}
+          activeFiltersCount={activeFiltersCount}
+        />
 
         {/* Question Cards Grid */}
         <section className="mb-14">
+
           {/* Searching debounce loading banner */}
           {isSearching && (
             <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 py-2 px-4 text-xs font-semibold text-blue-500 dark:text-blue-300 backdrop-blur-md animate-pulse">
@@ -342,6 +329,8 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
           onSearchChange={setSearch}
           onToggleType={toggleType}
           onToggleTag={toggleTag}
+          onSelectAuthor={setAuthor}
+          authorFrequencies={authorFrequencies}
           onToggleHideAsked={setHideAsked}
           onToggleOnlyFavorites={setOnlyFavorites}
           onResetFilters={resetFilters}
@@ -354,6 +343,17 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
           isSearching={isSearching}
         />
       </aside>
+
+      {/* Floating Compact Stats Bar (PC / Desktop only) */}
+      <div className="hidden xl:flex fixed bottom-3 right-4 z-40">
+        <StatsBar
+          compact
+          totalCount={allQuestions.length}
+          askedCount={isClient ? askedIds.size : 0}
+          favoriteCount={isClient ? favoriteIds.size : 0}
+          onResetAsked={resetAsked}
+        />
+      </div>
 
       {/* Fullscreen Stage Presentation Mode Modal */}
       <PresentationModal

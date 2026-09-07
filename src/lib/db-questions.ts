@@ -23,6 +23,7 @@ export async function getAllQuestions(): Promise<Question[]> {
     tags: doc.tags || [],
     createdBy: doc.createdBy || { adminId: 'system', name: 'System' },
     updatedBy: doc.updatedBy,
+    createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   }));
 }
@@ -33,7 +34,8 @@ export interface GetQuestionsOptions {
   search?: string;
   category?: string;
   type?: string;
-  sortBy?: 'id' | 'text' | 'category' | 'type';
+  author?: string;
+  sortBy?: 'id' | 'text' | 'category' | 'type' | 'updatedAt' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -54,8 +56,9 @@ export async function getAdminQuestions(
     search = '',
     category,
     type,
-    sortBy = 'id',
-    sortOrder = 'asc',
+    author,
+    sortBy = 'updatedAt',
+    sortOrder = 'desc',
   } = options;
 
   const client = await clientPromise;
@@ -77,13 +80,34 @@ export async function getAdminQuestions(
     query.type = type;
   }
 
+  if (author && author !== 'all') {
+    if (author === 'system') {
+      query.$or = [
+        { 'createdBy.adminId': 'system' },
+        { createdBy: { $exists: false } },
+        { 'createdBy.adminId': { $exists: false } },
+      ];
+    } else {
+      query['createdBy.adminId'] = author;
+    }
+  }
+
   const total = await collection.countDocuments(query);
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const safePage = Math.max(1, Math.min(page, totalPages));
   const skip = (safePage - 1) * limit;
 
   const sortDirection = sortOrder === 'desc' ? -1 : 1;
-  const sortObj: Record<string, 1 | -1> = { [sortBy]: sortDirection };
+  let sortObj: Record<string, 1 | -1>;
+
+  if (sortBy === 'updatedAt') {
+    // Sort by updatedAt desc (or asc), then fallback to id desc
+    sortObj = { updatedAt: sortDirection, id: -1 };
+  } else if (sortBy === 'id') {
+    sortObj = { id: sortDirection };
+  } else {
+    sortObj = { [sortBy]: sortDirection, id: -1 };
+  }
 
   const docs = await collection
     .find(query, { projection: { _id: 0 } })
@@ -100,6 +124,7 @@ export async function getAdminQuestions(
     tags: doc.tags || [],
     createdBy: doc.createdBy || { adminId: 'system', name: 'System' },
     updatedBy: doc.updatedBy,
+    createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   }));
 
@@ -128,6 +153,7 @@ export async function getQuestionById(id: number): Promise<Question | null> {
     tags: doc.tags || [],
     createdBy: doc.createdBy || { adminId: 'system', name: 'System' },
     updatedBy: doc.updatedBy,
+    createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
 }
@@ -164,6 +190,7 @@ export async function createQuestion(
     type: data.type,
     tags: Array.isArray(data.tags) ? data.tags.map((t) => t.trim()).filter(Boolean) : [],
     createdBy,
+    createdAt: now,
     updatedAt: now,
   };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useTransition } from 'react';
+import React, { useState, useEffect, useCallback, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { hapticFeedback } from '@/lib/haptics';
 import { ModalShell } from '@/components/ui/ModalShell';
@@ -25,6 +25,7 @@ import {
   Check,
   X,
   Users,
+  UserCheck,
   History,
 } from 'lucide-react';
 import { CategoryMeta, Question, TypeMeta } from '@/types/question';
@@ -43,16 +44,36 @@ import { useToast } from '@/hooks/useToast';
 import { SearchableDropdown, DropdownOption } from './SearchableDropdown';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
+function formatDateTime(dateStr?: string): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return '';
+  }
+}
+
 interface AdminDashboardProps {
   currentAdmin: AdminUserPublic;
   initialCategories: CategoryMeta[];
   initialTypes: TypeMeta[];
+  initialAdmins?: AdminUserPublic[];
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   currentAdmin,
   initialCategories,
   initialTypes,
+  initialAdmins = [],
 }) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -65,6 +86,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Categories & Types state
   const [categories, setCategories] = useState<CategoryMeta[]>(initialCategories);
   const [types, setTypes] = useState<TypeMeta[]>(initialTypes);
+  const [admins] = useState<AdminUserPublic[]>(initialAdmins);
 
   // Questions State
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -74,13 +96,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
-  // Filter & Sorting State
+  // Filter & Sorting State (Default author is current logged in admin)
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
-  const [sortBy, setSortBy] = useState<'id' | 'text' | 'category' | 'type'>('id');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [selectedAuthor, setSelectedAuthor] = useState<string>(currentAdmin.id);
+  const [sortBy, setSortBy] = useState<'id' | 'text' | 'category' | 'type' | 'updatedAt'>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Author Dropdown Options (Concise labels for optimal compact toolbar layout)
+  const authorOptions: DropdownOption[] = useMemo(() => {
+    const list: DropdownOption[] = [
+      {
+        id: currentAdmin.id,
+        label: 'My Questions',
+        sublabel: `Signed in as ${currentAdmin.name}`,
+        iconName: 'UserCheck',
+      },
+      {
+        id: 'all',
+        label: 'All Authors',
+        sublabel: 'Show questions by anyone',
+        iconName: 'Users',
+      },
+      {
+        id: 'system',
+        label: 'System Default',
+        sublabel: 'Initial seed questions',
+        iconName: 'Database',
+      },
+    ];
+
+    const otherAdmins = admins.filter((a) => a.id !== currentAdmin.id);
+    for (const admin of otherAdmins) {
+      list.push({
+        id: admin.id,
+        label: admin.name,
+        sublabel: admin.role === 'master_admin' ? 'Master Admin' : admin.email,
+        iconName: 'User',
+      });
+    }
+
+    return list;
+  }, [currentAdmin, admins]);
 
   // Mobile drawer & interaction states
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -139,6 +198,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (debouncedSearch) params.set('search', debouncedSearch);
     if (selectedCategory !== 'all') params.set('category', selectedCategory);
     if (selectedType !== 'all') params.set('type', selectedType);
+    if (selectedAuthor !== 'all') params.set('author', selectedAuthor);
 
     fetch(`/api/admin/questions?${params.toString()}`)
       .then((res) => {
@@ -164,7 +224,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return () => {
       ignore = true;
     };
-  }, [page, limit, debouncedSearch, selectedCategory, selectedType, sortBy, sortOrder, refreshKey, toast]);
+  }, [page, limit, debouncedSearch, selectedCategory, selectedType, selectedAuthor, sortBy, sortOrder, refreshKey, toast]);
 
   // Fetch Categories & Types refresh
   const refreshCategories = useCallback(async () => {
@@ -213,12 +273,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // Sorting helper
-  const handleToggleSort = (field: 'id' | 'text' | 'category' | 'type') => {
+  const handleToggleSort = (field: 'id' | 'text' | 'category' | 'type' | 'updatedAt') => {
     if (sortBy === field) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortBy(field);
-      setSortOrder('asc');
+      setSortOrder(field === 'updatedAt' || field === 'id' ? 'desc' : 'asc');
     }
     setPage(1);
   };
@@ -406,7 +466,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const isPageAllSelected =
     questions.length > 0 && questions.every((q) => selectedIds.includes(q.id));
 
-  const activeFilterCount = (selectedCategory !== 'all' ? 1 : 0) + (selectedType !== 'all' ? 1 : 0);
+  const activeFilterCount =
+    (selectedCategory !== 'all' ? 1 : 0) +
+    (selectedType !== 'all' ? 1 : 0) +
+    (selectedAuthor !== 'all' ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-surface text-content flex flex-col selection:bg-blue-600 selection:text-white">
@@ -555,24 +618,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* TAB 1: QUESTIONS */}
         {activeTab === 'questions' && (
           <div className="space-y-4">
-            {/* Desktop Toolbar (Hidden on Mobile) */}
-            <div className="hidden md:flex gap-3 items-center justify-between">
+            {/* Desktop Toolbar (Hidden on Mobile, Single Sleek Row) */}
+            <div className="hidden md:flex gap-2.5 items-center justify-between">
               {/* Search & Filters */}
-              <div className="flex flex-1 flex-wrap gap-2 items-center">
+              <div className="flex flex-1 items-center gap-2 min-w-0">
                 {/* Search Bar */}
-                <div className="relative flex-1 min-w-[220px]">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted" />
+                <div className="relative flex-1 min-w-[140px] max-w-[240px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted" />
                   <input
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by question text..."
-                    className="w-full pl-10 pr-4 py-2 bg-surface-card/90 border border-edge-strong/80 rounded-xl text-content text-sm placeholder-content-muted focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="Search questions..."
+                    className="w-full pl-9 pr-3 py-2 bg-surface-card/90 border border-edge-strong/80 rounded-xl text-content text-xs sm:text-sm placeholder-content-muted focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
                   {search && (
                     <button
                       onClick={() => setSearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-content-muted hover:text-content"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-content-muted hover:text-content"
                     >
                       Clear
                     </button>
@@ -580,7 +643,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 {/* Category Filter */}
-                <div className="min-w-[170px]">
+                <div className="w-[170px] lg:w-[190px] shrink-0">
                   <SearchableDropdown
                     label=""
                     options={[
@@ -600,7 +663,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 {/* Type Filter */}
-                <div className="min-w-[160px]">
+                <div className="w-[155px] lg:w-[175px] shrink-0">
                   <SearchableDropdown
                     label=""
                     options={[
@@ -618,11 +681,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   />
                 </div>
 
+                {/* Author Filter (Wide & Comfortable) */}
+                <div className="w-[160px] lg:w-[180px] shrink-0">
+                  <SearchableDropdown
+                    label=""
+                    options={authorOptions}
+                    value={selectedAuthor}
+                    onChange={(val) => { setSelectedAuthor(val); setPage(1); }}
+                    placeholder="All Authors"
+                    searchPlaceholder="Search author..."
+                  />
+                </div>
+
                 {/* Refresh button */}
                 <button
                   onClick={() => triggerReloadQuestions()}
                   title="Reload questions"
-                  className="p-2 bg-surface-card hover:bg-surface-elevated border border-edge-strong/80 rounded-xl text-content-muted hover:text-content transition"
+                  className="p-2 bg-surface-card hover:bg-surface-elevated border border-edge-strong/80 rounded-xl text-content-muted hover:text-content transition shrink-0"
                 >
                   <RefreshCw
                     className={`w-4 h-4 ${isLoadingQuestions ? 'animate-spin text-blue-400' : ''}`}
@@ -634,10 +709,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => setIsImportExportOpen(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-content hover:text-white bg-surface-card hover:bg-surface-elevated border border-edge-strong/80 rounded-xl transition"
+                  title="Import / Export Questions (JSON/Excel)"
+                  className="flex items-center gap-1.5 p-2 xl:px-3 xl:py-2 text-xs sm:text-sm font-medium text-content-secondary hover:text-white bg-surface-card hover:bg-surface-elevated border border-edge-strong/80 rounded-xl transition shrink-0"
                 >
                   <DownloadCloud className="w-4 h-4 text-blue-400" />
-                  <span>Import / Export</span>
+                  <span className="hidden xl:inline">Import / Export</span>
                 </button>
 
                 <button
@@ -645,7 +721,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     setEditingQuestion(null);
                     setIsQuestionModalOpen(true);
                   }}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/30 transition"
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/30 transition shrink-0"
                 >
                   <Plus className="w-4 h-4" />
                   <span>New Question</span>
@@ -788,20 +864,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <th className="p-4 w-20">
                         <button
                           onClick={() => handleToggleSort('id')}
-                          className="flex items-center gap-1.5 hover:text-content transition"
+                          className={`flex items-center gap-1.5 transition ${
+                            sortBy === 'id' ? 'text-blue-400 font-semibold' : 'hover:text-content text-content-muted'
+                          }`}
                         >
                           <span>ID</span>
-                          <ArrowUpDown className="w-3.5 h-3.5 text-content-muted" />
+                          <ArrowUpDown className={`w-3.5 h-3.5 ${sortBy === 'id' ? 'text-blue-400' : 'text-content-muted'}`} />
                         </button>
                       </th>
                       <th className="p-4">
-                        <button
-                          onClick={() => handleToggleSort('text')}
-                          className="flex items-center gap-1.5 hover:text-content transition"
-                        >
-                          <span>Question Text</span>
-                          <ArrowUpDown className="w-3.5 h-3.5 text-content-muted" />
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleToggleSort('text')}
+                            className={`flex items-center gap-1.5 transition ${
+                              sortBy === 'text' ? 'text-blue-400 font-semibold' : 'hover:text-content text-content-muted'
+                            }`}
+                          >
+                            <span>Question Text</span>
+                            <ArrowUpDown className={`w-3.5 h-3.5 ${sortBy === 'text' ? 'text-blue-400' : 'text-content-muted'}`} />
+                          </button>
+
+                          <button
+                            onClick={() => handleToggleSort('updatedAt')}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium border transition ${
+                              sortBy === 'updatedAt'
+                                ? 'bg-blue-600/20 border-blue-500 text-blue-400 font-semibold shadow-sm'
+                                : 'bg-surface-elevated/70 border-edge text-content-muted hover:text-content'
+                            }`}
+                            title="Sort by Recently Updated"
+                          >
+                            <span>Recently Updated</span>
+                            <ArrowUpDown className="w-3 h-3" />
+                            {sortBy === 'updatedAt' && (
+                              <span className="text-[9px] font-mono text-blue-400 uppercase">
+                                {sortOrder}
+                              </span>
+                            )}
+                          </button>
+                        </div>
                       </th>
                       <th className="p-4 w-52">Category</th>
                       <th className="p-4 w-48">Format</th>
@@ -820,7 +920,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     ) : questions.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="p-12 text-center text-content-muted">
-                          No questions found matching your search or filters.
+                          <div className="max-w-md mx-auto space-y-2">
+                            <p className="text-sm font-semibold text-content-secondary">
+                              {selectedAuthor === currentAdmin.id
+                                ? "You haven't created any questions yet"
+                                : 'No questions found matching your filters'}
+                            </p>
+                            <p className="text-xs text-content-muted">
+                              {selectedAuthor === currentAdmin.id
+                                ? 'Switch to "All Authors" to browse the complete library or create your first question.'
+                                : 'Try adjusting your search, category, format, or author filter.'}
+                            </p>
+                            {selectedAuthor === currentAdmin.id && (
+                              <div className="pt-2 flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedAuthor('all');
+                                    setPage(1);
+                                  }}
+                                  className="px-3 py-1.5 text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg transition"
+                                >
+                                  Show All Authors
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingQuestion(null);
+                                    setIsQuestionModalOpen(true);
+                                  }}
+                                  className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition"
+                                >
+                                  + Create Question
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ) : (
@@ -855,12 +990,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               #{q.id}
                             </td>
 
-                            {/* Text */}
+                            {/* Text & History Attribution */}
                             <td className="p-4 text-content font-medium leading-relaxed max-w-md">
-                              <div>{q.text}</div>
-                              <div className="text-[11px] text-content-muted mt-1 flex items-center gap-1.5 font-normal">
-                                <span>By {q.createdBy?.name || 'System'}</span>
-                                {q.updatedBy && <span>• Edited by {q.updatedBy.name}</span>}
+                              <div className="text-sm text-content font-medium leading-relaxed">{q.text}</div>
+                              <div className="mt-2 pt-1.5 border-t border-edge/40 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                                {/* Created By & Created At */}
+                                <div className="flex items-center gap-1 text-content-muted">
+                                  <span className="text-content-muted">Created:</span>
+                                  <span className="font-semibold text-content-secondary">{q.createdBy?.name || 'System'}</span>
+                                  {q.createdAt && (
+                                    <span className="text-[10px] font-mono text-content-muted">
+                                      ({formatDateTime(q.createdAt)})
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Updated By & Updated At */}
+                                <div className="flex items-center gap-1 text-content-muted">
+                                  <span className="text-content-muted">• Updated:</span>
+                                  {q.updatedBy ? (
+                                    <>
+                                      <span className="font-semibold text-content-secondary">{q.updatedBy.name}</span>
+                                      {q.updatedAt && (
+                                        <span className="text-[10px] font-mono text-content-muted">
+                                          ({formatDateTime(q.updatedAt)})
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : q.updatedAt ? (
+                                    <span className="text-[10px] font-mono text-content-muted">
+                                      ({formatDateTime(q.updatedAt)})
+                                    </span>
+                                  ) : (
+                                    <span className="text-content-muted italic">Never</span>
+                                  )}
+                                </div>
                               </div>
                             </td>
 
@@ -978,9 +1142,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <p className="text-xs">Loading questions from database...</p>
                 </div>
               ) : questions.length === 0 ? (
-                <div className="p-8 text-center text-content-muted bg-surface-card/60 border border-edge rounded-2xl">
-                  <p className="text-sm font-semibold text-content-secondary">No questions found</p>
-                  <p className="text-xs text-content-muted mt-1">Try adjusting your search or active filters.</p>
+                <div className="p-8 text-center text-content-muted bg-surface-card/60 border border-edge rounded-2xl space-y-2">
+                  <p className="text-sm font-semibold text-content-secondary">
+                    {selectedAuthor === currentAdmin.id
+                      ? "You haven't created any questions yet"
+                      : 'No questions found'}
+                  </p>
+                  <p className="text-xs text-content-muted">
+                    {selectedAuthor === currentAdmin.id
+                      ? 'Switch to "All Authors" to browse the whole question library.'
+                      : 'Try adjusting your search or active filters.'}
+                  </p>
+                  {selectedAuthor === currentAdmin.id && (
+                    <div className="pt-2 flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedAuthor('all');
+                          setPage(1);
+                        }}
+                        className="px-3 py-1.5 text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg transition"
+                      >
+                        Show All Authors
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 questions.map((q) => {
@@ -1038,9 +1224,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <p className="text-sm font-medium text-content leading-relaxed">
                         {q.text}
                       </p>
-                      <div className="text-[10px] text-content-muted flex items-center gap-1.5 font-normal">
-                        <span>By {q.createdBy?.name || 'System'}</span>
-                        {q.updatedBy && <span>• Edited by {q.updatedBy.name}</span>}
+
+                      {/* Attribution & Timestamps */}
+                      <div className="pt-2 border-t border-edge/60 space-y-1 text-[11px]">
+                        <div className="flex items-center justify-between gap-2 text-content-muted">
+                          <span className="text-content-muted">Created:</span>
+                          <span className="text-content-secondary font-medium truncate">
+                            {q.createdBy?.name || 'System'}
+                            {q.createdAt && (
+                              <span className="text-[10px] font-mono text-content-muted ml-1.5">
+                                ({formatDateTime(q.createdAt)})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 text-content-muted">
+                          <span className="text-content-muted">Updated:</span>
+                          <span className="text-content-secondary font-medium truncate">
+                            {q.updatedBy ? (
+                              <>
+                                {q.updatedBy.name}
+                                {q.updatedAt && (
+                                  <span className="text-[10px] font-mono text-content-muted ml-1.5">
+                                    ({formatDateTime(q.updatedAt)})
+                                  </span>
+                                )}
+                              </>
+                            ) : q.updatedAt ? (
+                              <span className="text-[10px] font-mono text-content-muted">
+                                ({formatDateTime(q.updatedAt)})
+                              </span>
+                            ) : (
+                              <span className="text-content-muted italic">Never</span>
+                            )}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Tags */}
@@ -1502,6 +1721,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               />
             </div>
 
+            {/* Filter Author */}
+            <div>
+              <SearchableDropdown
+                label="Filter by Author"
+                icon={<UserCheck className="w-3.5 h-3.5 text-emerald-400" />}
+                options={authorOptions}
+                value={selectedAuthor}
+                onChange={(val) => { setSelectedAuthor(val); setPage(1); }}
+                placeholder="All Authors"
+                searchPlaceholder="Search author..."
+              />
+            </div>
+
             {/* Sort Options */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-content-muted mb-2">
@@ -1509,6 +1741,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {[
+                  { key: 'updatedAt', label: 'Recently Updated' },
                   { key: 'id', label: 'ID Number' },
                   { key: 'text', label: 'Question Text' },
                   { key: 'category', label: 'Category' },
@@ -1522,8 +1755,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       if (sortBy === s.key) {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                       } else {
-                        setSortBy(s.key as 'id' | 'text' | 'category' | 'type');
-                        setSortOrder('asc');
+                        setSortBy(s.key as 'id' | 'text' | 'category' | 'type' | 'updatedAt');
+                        setSortOrder(s.key === 'updatedAt' || s.key === 'id' ? 'desc' : 'asc');
                       }
                     }}
                     className={`px-3 py-2 rounded-xl text-xs font-medium border transition text-left flex items-center justify-between ${
@@ -1552,8 +1785,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 hapticFeedback.light();
                 setSelectedCategory('all');
                 setSelectedType('all');
-                setSortBy('id');
-                setSortOrder('asc');
+                setSelectedAuthor(currentAdmin.id);
+                setSortBy('updatedAt');
+                setSortOrder('desc');
                 setPage(1);
               }}
               className="px-4 py-2.5 rounded-xl border border-edge-strong text-xs font-semibold text-content-muted hover:text-content transition min-h-[44px]"

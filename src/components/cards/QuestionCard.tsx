@@ -107,19 +107,24 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
         {/* Bottom Section */}
         <div className="mt-5 pt-3 border-t border-edge">
-          {/* Tags */}
-          {question.tags.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {question.tags.map((t) => (
-                <span
-                  key={t}
-                  className="rounded-md bg-surface-elevated/60 px-2 py-0.5 text-[10px] font-medium text-content-muted border border-edge-subtle"
-                >
-                  {TAG_LABELS[t] || t}
-                </span>
-              ))}
-            </div>
-          )}
+          {/* Tags & Author attribution */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-1.5">
+            {question.tags.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {question.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-md bg-surface-elevated/60 px-2 py-0.5 text-[10px] font-medium text-content-muted border border-edge-subtle"
+                  >
+                    {TAG_LABELS[t] || t}
+                  </span>
+                ))}
+              </div>
+            ) : <div />}
+            <span className="text-[10px] font-medium text-content-muted/75 shrink-0 ml-auto">
+              By {question.createdBy?.name || 'System'}
+            </span>
+          </div>
 
           {/* Action Toolbar */}
           <div className="flex items-center justify-between pt-1">

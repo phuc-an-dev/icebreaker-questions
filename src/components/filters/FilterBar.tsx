@@ -18,6 +18,8 @@ import {
   RotateCcw,
   Check,
   Loader2,
+  User,
+  Users,
 } from 'lucide-react';
 
 interface FilterBarProps {
@@ -25,6 +27,8 @@ interface FilterBarProps {
   onSearchChange: (val: string) => void;
   onToggleType: (typeId: QuestionTypeId) => void;
   onToggleTag: (tag: string) => void;
+  onSelectAuthor?: (authorId: string) => void;
+  authorFrequencies?: Array<{ id: string; name: string; count: number }>;
   onToggleHideAsked: (val: boolean) => void;
   onToggleOnlyFavorites: (val: boolean) => void;
   onResetFilters: () => void;
@@ -43,6 +47,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   onSearchChange,
   onToggleType,
   onToggleTag,
+  onSelectAuthor,
+  authorFrequencies = [],
   onToggleHideAsked,
   onToggleOnlyFavorites,
   onResetFilters,
@@ -55,7 +61,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   isSearching = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'types' | 'tags'>('types');
+  const [activeTab, setActiveTab] = useState<'types' | 'tags' | 'authors'>('types');
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -198,6 +204,43 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <span>Favorites</span>
           </button>
 
+          {/* Author quick toggle */}
+          {authorFrequencies.length > 0 && (
+            <button
+              onClick={() => {
+                setActiveTab('authors');
+                setIsModalOpen(true);
+                hapticFeedback.light();
+              }}
+              className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] transition-colors ${
+                filters.author && filters.author !== 'all'
+                  ? 'border-indigo-500/40 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-medium'
+                  : 'border-edge bg-surface-card/50 text-content-muted hover:border-edge-strong'
+              }`}
+              title="Filter by Author"
+            >
+              <User className="h-3 w-3" />
+              <span>
+                {filters.author && filters.author !== 'all'
+                  ? authorFrequencies.find((a) => a.id === filters.author)?.name || 'Author'
+                  : 'Author'}
+              </span>
+              {filters.author && filters.author !== 'all' && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectAuthor?.('all');
+                    hapticFeedback.light();
+                  }}
+                  className="ml-0.5 hover:text-content"
+                  title="Clear author filter"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Reset Filters chip if active */}
           {activeFiltersCount > 0 && (
             <button
@@ -221,7 +264,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title="Filter Options"
-        subtitle="Filter questions by format and thematic tags"
+        subtitle="Filter questions by format, thematic tags, and author"
         icon={<SlidersHorizontal className="h-4 w-4 text-blue-500 dark:text-blue-400" />}
         maxWidth="lg"
         subHeader={
@@ -237,7 +280,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   : 'text-content-muted hover:text-content'
               }`}
             >
-              Question Types ({typeFrequencies.length})
+              Types ({typeFrequencies.length})
               {selectedTypesCount > 0 && ` • ${selectedTypesCount}`}
             </button>
             <button
@@ -251,9 +294,25 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   : 'text-content-muted hover:text-content'
               }`}
             >
-              Topics / Tags ({tagFrequencies.length})
+              Tags ({tagFrequencies.length})
               {selectedTagsCount > 0 && ` • ${selectedTagsCount}`}
             </button>
+            {authorFrequencies.length > 0 && (
+              <button
+                onClick={() => {
+                  setActiveTab('authors');
+                  hapticFeedback.light();
+                }}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                  activeTab === 'authors'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-content-muted hover:text-content'
+                }`}
+              >
+                Authors ({authorFrequencies.length})
+                {filters.author && filters.author !== 'all' && ` • 1`}
+              </button>
+            )}
           </div>
         }
         footer={
@@ -307,7 +366,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               );
             })}
           </div>
-        ) : (
+        ) : activeTab === 'tags' ? (
           <div className="flex flex-wrap gap-2">
             {tagFrequencies.map(({ tag, label, count }) => {
               const isSelected = filters.tags.includes(tag);
@@ -327,6 +386,51 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   <span>{label}</span>
                   <span className="text-[10px] text-content-muted">({count})</span>
                   {isSelected && <Check className="h-3 w-3 text-rose-500 dark:text-rose-400 ml-0.5" />}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                onSelectAuthor?.('all');
+                hapticFeedback.light();
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
+                !filters.author || filters.author === 'all'
+                  ? 'border border-indigo-500/80 dark:border-indigo-400/80 bg-indigo-500/20 dark:bg-indigo-400/20 text-indigo-700 dark:text-indigo-200 font-semibold'
+                  : 'border border-edge bg-surface-card/60 text-content-muted hover:border-edge-strong hover:text-content'
+              }`}
+            >
+              <Users className="h-3.5 w-3.5" />
+              <span>All Authors</span>
+              <span className="text-[10px] text-content-muted">({totalCount})</span>
+              {(!filters.author || filters.author === 'all') && (
+                <Check className="h-3 w-3 text-indigo-500 dark:text-indigo-400 ml-0.5" />
+              )}
+            </button>
+            {authorFrequencies.map((a) => {
+              const isSelected = filters.author === a.id;
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => {
+                    onSelectAuthor?.(a.id);
+                    hapticFeedback.light();
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
+                    isSelected
+                      ? 'border border-indigo-500/80 dark:border-indigo-400/80 bg-indigo-500/20 dark:bg-indigo-400/20 text-indigo-700 dark:text-indigo-200 font-semibold'
+                      : 'border border-edge bg-surface-card/60 text-content-muted hover:border-edge-strong hover:text-content'
+                  }`}
+                >
+                  <User className="h-3.5 w-3.5" />
+                  <span>{a.name}</span>
+                  <span className="text-[10px] text-content-muted">({a.count})</span>
+                  {isSelected && (
+                    <Check className="h-3 w-3 text-indigo-500 dark:text-indigo-400 ml-0.5" />
+                  )}
                 </button>
               );
             })}

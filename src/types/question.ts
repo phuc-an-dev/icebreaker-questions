@@ -39,6 +39,7 @@ export interface Question {
   tags: string[];
   createdBy?: QuestionAttribution;
   updatedBy?: QuestionAttribution;
+  createdAt?: string;
   updatedAt?: string;
 }
 
@@ -64,6 +65,7 @@ export interface FilterState {
   categories: CategoryId[];
   types: QuestionTypeId[];
   tags: string[];
+  author?: string;
   search: string;
   hideAsked: boolean;
   onlyFavorites: boolean;
