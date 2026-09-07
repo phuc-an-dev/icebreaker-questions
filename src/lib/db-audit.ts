@@ -1,8 +1,23 @@
 import crypto from 'crypto';
 import clientPromise from '@/lib/mongodb';
 import { AuditAction, AuditLogEntry } from '@/types/admin';
+import { escapeRegex } from '@/lib/utils';
 
 const DB_NAME = process.env.MONGODB_DB || 'icebreaker_db';
+
+let auditIndexesEnsured = false;
+async function ensureAuditIndexes() {
+  if (auditIndexesEnsured) return;
+  try {
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
+    await db.collection('audit_logs').createIndex({ timestamp: -1 });
+    await db.collection('audit_logs').createIndex({ action: 1 });
+    auditIndexesEnsured = true;
+  } catch {
+    // ignore if already created
+  }
+}
 
 export interface RecordAuditOptions {
   action: AuditAction;
@@ -17,6 +32,7 @@ export interface RecordAuditOptions {
 
 export async function recordAuditLog(options: RecordAuditOptions): Promise<void> {
   try {
+    await ensureAuditIndexes();
     const client = await clientPromise;
     const db = client.db(DB_NAME);
     const collection = db.collection<AuditLogEntry>('audit_logs');
@@ -58,6 +74,7 @@ export async function getAuditLogs(
 ): Promise<PaginatedAuditLogsResult> {
   const { page = 1, limit = 20, search = '', action } = options;
 
+  await ensureAuditIndexes();
   const client = await clientPromise;
   const db = client.db(DB_NAME);
   const collection = db.collection<AuditLogEntry>('audit_logs');
@@ -69,7 +86,8 @@ export async function getAuditLogs(
   }
 
   if (search.trim()) {
-    const regex = { $regex: search.trim(), $options: 'i' };
+    const escaped = escapeRegex(search.trim());
+    const regex = { $regex: escaped, $options: 'i' };
     query.$or = [
       { actorName: regex },
       { actorEmail: regex },

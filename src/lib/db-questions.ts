@@ -2,6 +2,7 @@ import clientPromise from '@/lib/mongodb';
 import { CategoryMeta, Question, TypeMeta } from '@/types/question';
 import { CATEGORIES, QUESTION_TYPES } from '@/data/metadata';
 import { recordAuditLog } from '@/lib/db-audit';
+import { escapeRegex } from '@/lib/utils';
 
 const DB_NAME = process.env.MONGODB_DB || 'icebreaker_db';
 
@@ -65,7 +66,7 @@ export async function getAdminQuestions(
   const query: Record<string, unknown> = {};
 
   if (search.trim()) {
-    query.text = { $regex: search.trim(), $options: 'i' };
+    query.text = { $regex: escapeRegex(search.trim()), $options: 'i' };
   }
 
   if (category && category !== 'all') {

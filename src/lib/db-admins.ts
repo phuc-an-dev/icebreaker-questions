@@ -50,59 +50,67 @@ async function ensureAdminIndexes() {
   }
 }
 
+let seedPromise: Promise<AdminUser | null> | null = null;
+
 export async function seedMasterAdminIfNeeded(): Promise<AdminUser | null> {
-  await ensureAdminIndexes();
-  const client = await clientPromise;
-  const db = client.db(DB_NAME);
-  const collection = db.collection<AdminUser>('admins');
+  if (seedPromise) return seedPromise;
 
-  const existingMaster = await collection.findOne({ role: 'master_admin' });
-  if (existingMaster) {
-    return existingMaster;
-  }
+  seedPromise = (async () => {
+    await ensureAdminIndexes();
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
+    const collection = db.collection<AdminUser>('admins');
 
-  // Count if any admins exist
-  const count = await collection.countDocuments({});
-  if (count > 0) {
-    // If there are existing admins but no master_admin, promote the first active one
-    const firstAdmin = await collection.findOne({ status: 'active' });
-    if (firstAdmin) {
-      await collection.updateOne(
-        { id: firstAdmin.id },
-        { $set: { role: 'master_admin', updatedAt: new Date().toISOString() } }
-      );
-      return { ...firstAdmin, role: 'master_admin' };
+    const existingMaster = await collection.findOne({ role: 'master_admin' });
+    if (existingMaster) {
+      return existingMaster;
     }
-  }
 
-  // Seed default Master Admin from env or defaults
-  const masterEmail = (process.env.MASTER_ADMIN_EMAIL || 'admin@icebreaker.local').toLowerCase().trim();
-  const masterPassword = process.env.MASTER_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'admin123';
-  const salt = generateSalt();
-  const passwordHash = hashPassword(masterPassword, salt);
+    // Count if any admins exist
+    const count = await collection.countDocuments({});
+    if (count > 0) {
+      // If there are existing admins but no master_admin, promote the first active one
+      const firstAdmin = await collection.findOne({ status: 'active' });
+      if (firstAdmin) {
+        await collection.updateOne(
+          { id: firstAdmin.id },
+          { $set: { role: 'master_admin', updatedAt: new Date().toISOString() } }
+        );
+        return { ...firstAdmin, role: 'master_admin' };
+      }
+    }
 
-  const now = new Date().toISOString();
-  const masterUser: AdminUser = {
-    id: crypto.randomUUID(),
-    email: masterEmail,
-    name: 'Master Admin',
-    passwordHash,
-    salt,
-    role: 'master_admin',
-    status: 'active',
-    mustChangePassword: false,
-    tokenVersion: 1,
-    createdAt: now,
-    updatedAt: now,
-  };
+    // Seed default Master Admin from env or defaults
+    const masterEmail = (process.env.MASTER_ADMIN_EMAIL || 'admin@icebreaker.local').toLowerCase().trim();
+    const masterPassword = process.env.MASTER_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'admin123';
+    const salt = generateSalt();
+    const passwordHash = hashPassword(masterPassword, salt);
 
-  await collection.updateOne(
-    { email: masterEmail },
-    { $set: masterUser },
-    { upsert: true }
-  );
+    const now = new Date().toISOString();
+    const masterUser: AdminUser = {
+      id: crypto.randomUUID(),
+      email: masterEmail,
+      name: 'Master Admin',
+      passwordHash,
+      salt,
+      role: 'master_admin',
+      status: 'active',
+      mustChangePassword: false,
+      tokenVersion: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
 
-  return masterUser;
+    await collection.updateOne(
+      { email: masterEmail },
+      { $set: masterUser },
+      { upsert: true }
+    );
+
+    return masterUser;
+  })();
+
+  return seedPromise;
 }
 
 export async function findAdminByEmail(email: string): Promise<AdminUser | null> {
