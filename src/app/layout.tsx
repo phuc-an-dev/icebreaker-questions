@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://icebreaker-questions-kappa.vercel.app';
+const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://icebreaker.website';
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
