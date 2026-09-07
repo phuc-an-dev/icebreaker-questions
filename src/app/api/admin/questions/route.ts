@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isServerAdminAuthenticated } from '@/lib/auth';
+import { getServerCurrentAdmin } from '@/lib/auth';
 import {
   getAdminQuestions,
   createQuestion,
   bulkDeleteQuestions,
 } from '@/lib/db-questions';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
-  const authenticated = await isServerAdminAuthenticated();
-  if (!authenticated) {
+  const currentAdmin = await getServerCurrentAdmin();
+  if (!currentAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -42,8 +44,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authenticated = await isServerAdminAuthenticated();
-  if (!authenticated) {
+  const currentAdmin = await getServerCurrentAdmin();
+  if (!currentAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -65,13 +67,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Type is required' }, { status: 400 });
     }
 
-    const question = await createQuestion({
-      text: body.text,
-      category: body.category,
-      type: body.type,
-      tags: body.tags,
-      id: body.id ? parseInt(body.id, 10) : undefined,
-    });
+    const question = await createQuestion(
+      {
+        text: body.text,
+        category: body.category,
+        type: body.type,
+        tags: body.tags,
+        id: body.id ? parseInt(body.id, 10) : undefined,
+      },
+      currentAdmin
+    );
 
     return NextResponse.json({ question }, { status: 201 });
   } catch (error) {
@@ -84,8 +89,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const authenticated = await isServerAdminAuthenticated();
-  if (!authenticated) {
+  const currentAdmin = await getServerCurrentAdmin();
+  if (!currentAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -100,7 +105,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const numericIds = ids.map((id) => Number(id)).filter((id) => !isNaN(id));
-    const deletedCount = await bulkDeleteQuestions(numericIds);
+    const deletedCount = await bulkDeleteQuestions(numericIds, currentAdmin);
 
     return NextResponse.json({ success: true, deletedCount });
   } catch (error) {

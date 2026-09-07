@@ -11,8 +11,6 @@ import {
   ArrowUpDown,
   Edit2,
   Trash2,
-  LogOut,
-  ExternalLink,
   Layers,
   MessageSquareQuote,
   Database,
@@ -26,24 +24,33 @@ import {
   Copy,
   Check,
   X,
+  Users,
+  History,
 } from 'lucide-react';
 import { CategoryMeta, Question, TypeMeta } from '@/types/question';
+import { AdminUserPublic } from '@/types/admin';
 import { IconHelper } from '@/components/ui/IconHelper';
 import { QuestionFormModal } from './QuestionFormModal';
 import { CategoryTypeModal } from './CategoryTypeModal';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { ImportExportModal } from './ImportExportModal';
+import { AdminUsersTab } from './AdminUsersTab';
+import { AuditLogsTab } from './AuditLogsTab';
+import { ChangePasswordModal } from './ChangePasswordModal';
+import { AdminProfileDropdown } from './AdminProfileDropdown';
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { useToast } from '@/hooks/useToast';
 import { SearchableDropdown, DropdownOption } from './SearchableDropdown';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 interface AdminDashboardProps {
+  currentAdmin: AdminUserPublic;
   initialCategories: CategoryMeta[];
   initialTypes: TypeMeta[];
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  currentAdmin,
   initialCategories,
   initialTypes,
 }) => {
@@ -52,7 +59,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const { toasts, toast, dismiss } = useToast();
 
   // Active Main Tab
-  const [activeTab, setActiveTab] = useState<'questions' | 'categories' | 'types'>('questions');
+  const [activeTab, setActiveTab] = useState<'questions' | 'categories' | 'types' | 'admins' | 'audit_logs'>('questions');
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(Boolean(currentAdmin.mustChangePassword));
 
   // Categories & Types state
   const [categories, setCategories] = useState<CategoryMeta[]>(initialCategories);
@@ -423,28 +431,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <ThemeToggle />
-          <a
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-medium text-content-secondary hover:text-content bg-surface-card hover:bg-surface-elevated border border-edge rounded-xl transition shadow-sm min-h-[38px]"
-            title="Open Public App"
-          >
-            <span className="hidden sm:inline">Public App</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-
-          <button
-            onClick={handleLogout}
-            disabled={isPending}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-medium text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl transition shadow-sm min-h-[38px]"
-            title="Sign Out"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
+          <AdminProfileDropdown
+            currentAdmin={currentAdmin}
+            onChangePassword={() => setIsChangePasswordOpen(true)}
+            onNavigateTab={(tab) => {
+              setActiveTab(tab);
+              hapticFeedback.light();
+            }}
+            onLogout={handleLogout}
+            isLogoutPending={isPending}
+          />
         </div>
       </header>
 
@@ -517,6 +515,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {types.length}
             </span>
           </button>
+
+          {/* Master Admin Only Tabs */}
+          {currentAdmin.role === 'master_admin' && (
+            <>
+              <button
+                onClick={() => {
+                  setActiveTab('admins');
+                  hapticFeedback.light();
+                }}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
+                  activeTab === 'admins'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                    : 'text-content-muted hover:text-content hover:bg-surface-card'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Admins</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('audit_logs');
+                  hapticFeedback.light();
+                }}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
+                  activeTab === 'audit_logs'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                    : 'text-content-muted hover:text-content hover:bg-surface-card'
+                }`}
+              >
+                <History className="w-4 h-4" />
+                <span>Audit Logs</span>
+              </button>
+            </>
+          )}
         </div>
 
         {/* TAB 1: QUESTIONS */}
@@ -824,7 +857,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                             {/* Text */}
                             <td className="p-4 text-content font-medium leading-relaxed max-w-md">
-                              {q.text}
+                              <div>{q.text}</div>
+                              <div className="text-[11px] text-content-muted mt-1 flex items-center gap-1.5 font-normal">
+                                <span>By {q.createdBy?.name || 'System'}</span>
+                                {q.updatedBy && <span>• Edited by {q.updatedBy.name}</span>}
+                              </div>
                             </td>
 
                             {/* Category Badge */}
@@ -1001,6 +1038,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <p className="text-sm font-medium text-content leading-relaxed">
                         {q.text}
                       </p>
+                      <div className="text-[10px] text-content-muted flex items-center gap-1.5 font-normal">
+                        <span>By {q.createdBy?.name || 'System'}</span>
+                        {q.updatedBy && <span>• Edited by {q.updatedBy.name}</span>}
+                      </div>
 
                       {/* Tags */}
                       {q.tags && q.tags.length > 0 && (
@@ -1303,6 +1344,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         )}
+
+        {/* TAB 4: ADMINS (MASTER ADMIN ONLY) */}
+        {activeTab === 'admins' && currentAdmin.role === 'master_admin' && (
+          <AdminUsersTab
+            currentAdmin={currentAdmin}
+            onToast={(type, message) => {
+              toast({
+                type,
+                title: type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notice',
+                description: message,
+              });
+            }}
+          />
+        )}
+
+        {/* TAB 5: AUDIT LOGS (MASTER ADMIN ONLY) */}
+        {activeTab === 'audit_logs' && currentAdmin.role === 'master_admin' && (
+          <AuditLogsTab
+            onToast={(type, message) => {
+              toast({
+                type,
+                title: type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notice',
+                description: message,
+              });
+            }}
+          />
+        )}
       </main>
 
       {/* Mobile Floating Action Button (FAB) (Option 4.A) */}
@@ -1550,6 +1618,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         onImportSuccess={() => {
           triggerReloadQuestions();
           toast({ type: 'success', title: 'Import successful', description: 'Questions have been imported and the list has been refreshed.' });
+        }}
+      />
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        isForced={Boolean(currentAdmin.mustChangePassword)}
+        onSuccess={() => {
+          toast({
+            type: 'success',
+            title: 'Password updated',
+            description: 'Your password has been changed successfully.',
+          });
         }}
       />
 

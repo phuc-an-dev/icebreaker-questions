@@ -1,6 +1,7 @@
 import clientPromise from '@/lib/mongodb';
 import { CategoryMeta, Question, TypeMeta } from '@/types/question';
 import { CATEGORIES, QUESTION_TYPES } from '@/data/metadata';
+import { recordAuditLog } from '@/lib/db-audit';
 
 const DB_NAME = process.env.MONGODB_DB || 'icebreaker_db';
 
@@ -19,6 +20,9 @@ export async function getAllQuestions(): Promise<Question[]> {
     category: doc.category,
     type: doc.type,
     tags: doc.tags || [],
+    createdBy: doc.createdBy || { adminId: 'system', name: 'System' },
+    updatedBy: doc.updatedBy,
+    updatedAt: doc.updatedAt,
   }));
 }
 
@@ -93,6 +97,9 @@ export async function getAdminQuestions(
     category: doc.category,
     type: doc.type,
     tags: doc.tags || [],
+    createdBy: doc.createdBy || { adminId: 'system', name: 'System' },
+    updatedBy: doc.updatedBy,
+    updatedAt: doc.updatedAt,
   }));
 
   return {
@@ -118,16 +125,22 @@ export async function getQuestionById(id: number): Promise<Question | null> {
     category: doc.category,
     type: doc.type,
     tags: doc.tags || [],
+    createdBy: doc.createdBy || { adminId: 'system', name: 'System' },
+    updatedBy: doc.updatedBy,
+    updatedAt: doc.updatedAt,
   };
 }
 
-export async function createQuestion(data: {
-  text: string;
-  category: string;
-  type: string;
-  tags?: string[];
-  id?: number;
-}): Promise<Question> {
+export async function createQuestion(
+  data: {
+    text: string;
+    category: string;
+    type: string;
+    tags?: string[];
+    id?: number;
+  },
+  actor?: { id: string; name: string; email: string }
+): Promise<Question> {
   const client = await clientPromise;
   const db = client.db(DB_NAME);
   const collection = db.collection<Question>('questions');
@@ -138,12 +151,19 @@ export async function createQuestion(data: {
     nextId = highest.length > 0 ? (highest[0].id || 0) + 1 : 1;
   }
 
+  const createdBy = actor
+    ? { adminId: actor.id, name: actor.name }
+    : { adminId: 'system', name: 'System' };
+  const now = new Date().toISOString();
+
   const newQuestion: Question = {
     id: nextId,
     text: data.text.trim(),
     category: data.category,
     type: data.type,
     tags: Array.isArray(data.tags) ? data.tags.map((t) => t.trim()).filter(Boolean) : [],
+    createdBy,
+    updatedAt: now,
   };
 
   await collection.updateOne(
@@ -152,12 +172,22 @@ export async function createQuestion(data: {
     { upsert: true }
   );
 
+  if (actor) {
+    await recordAuditLog({
+      action: 'CREATE_QUESTION',
+      actor,
+      targetId: newQuestion.id,
+      targetText: newQuestion.text,
+    });
+  }
+
   return newQuestion;
 }
 
 export async function updateQuestion(
   id: number,
-  updates: Partial<Omit<Question, 'id'>>
+  updates: Partial<Omit<Question, 'id'>>,
+  actor?: { id: string; name: string; email: string }
 ): Promise<Question | null> {
   const client = await clientPromise;
   const db = client.db(DB_NAME);
@@ -171,30 +201,80 @@ export async function updateQuestion(
     updateFields.tags = updates.tags.map((t) => t.trim()).filter(Boolean);
   }
 
+  if (actor) {
+    updateFields.updatedBy = { adminId: actor.id, name: actor.name };
+    updateFields.updatedAt = new Date().toISOString();
+  }
+
   const result = await collection.findOneAndUpdate(
     { id },
     { $set: updateFields },
     { returnDocument: 'after', projection: { _id: 0 } }
   );
 
+  if (result && actor) {
+    await recordAuditLog({
+      action: 'UPDATE_QUESTION',
+      actor,
+      targetId: id,
+      targetText: result.text,
+    });
+  }
+
   return result || null;
 }
 
-export async function deleteQuestion(id: number): Promise<boolean> {
+export async function deleteQuestion(
+  id: number,
+  actor?: { id: string; name: string; email: string }
+): Promise<boolean> {
   const client = await clientPromise;
   const db = client.db(DB_NAME);
-  const result = await db.collection<Question>('questions').deleteOne({ id });
-  return result.deletedCount > 0;
+  const collection = db.collection<Question>('questions');
+
+  let targetText: string | undefined;
+  if (actor) {
+    const existing = await collection.findOne({ id });
+    targetText = existing?.text;
+  }
+
+  const result = await collection.deleteOne({ id });
+  const success = result.deletedCount > 0;
+
+  if (success && actor) {
+    await recordAuditLog({
+      action: 'DELETE_QUESTION',
+      actor,
+      targetId: id,
+      targetText,
+    });
+  }
+
+  return success;
 }
 
-export async function bulkDeleteQuestions(ids: number[]): Promise<number> {
+export async function bulkDeleteQuestions(
+  ids: number[],
+  actor?: { id: string; name: string; email: string }
+): Promise<number> {
   if (!ids || ids.length === 0) return 0;
   const client = await clientPromise;
   const db = client.db(DB_NAME);
   const result = await db.collection<Question>('questions').deleteMany({
     id: { $in: ids },
   });
-  return result.deletedCount || 0;
+
+  const deletedCount = result.deletedCount || 0;
+  if (deletedCount > 0 && actor) {
+    await recordAuditLog({
+      action: 'BULK_DELETE_QUESTIONS',
+      actor,
+      targetId: ids,
+      targetText: `Bulk deleted ${deletedCount} question(s)`,
+    });
+  }
+
+  return deletedCount;
 }
 
 export async function bulkUpsertQuestions(

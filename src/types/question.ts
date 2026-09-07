@@ -26,12 +26,20 @@ export type QuestionTypeId =
   | 'challenge'
   | (string & {});
 
+export interface QuestionAttribution {
+  adminId: string;
+  name: string;
+}
+
 export interface Question {
   id: number;
   text: string;
   category: CategoryId;
   type: QuestionTypeId;
   tags: string[];
+  createdBy?: QuestionAttribution;
+  updatedBy?: QuestionAttribution;
+  updatedAt?: string;
 }
 
 export interface CategoryMeta {

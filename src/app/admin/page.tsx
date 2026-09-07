@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { isServerAdminAuthenticated } from '@/lib/auth';
+import { getServerCurrentAdmin } from '@/lib/auth';
 import { getCategoriesWithDefaults, getQuestionTypesWithDefaults } from '@/lib/db-questions';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { Metadata } from 'next';
@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPage() {
-  const authenticated = await isServerAdminAuthenticated();
-  if (!authenticated) {
+  const currentAdmin = await getServerCurrentAdmin();
+  if (!currentAdmin) {
     redirect('/admin/login');
   }
 
@@ -22,5 +22,11 @@ export default async function AdminPage() {
     getQuestionTypesWithDefaults(),
   ]);
 
-  return <AdminDashboard initialCategories={categories} initialTypes={types} />;
+  return (
+    <AdminDashboard
+      currentAdmin={currentAdmin}
+      initialCategories={categories}
+      initialTypes={types}
+    />
+  );
 }

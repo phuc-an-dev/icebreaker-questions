@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isServerAdminAuthenticated } from '@/lib/auth';
+import { getServerCurrentAdmin } from '@/lib/auth';
 import {
   getQuestionById,
   updateQuestion,
@@ -10,9 +10,11 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const authenticated = await isServerAdminAuthenticated();
-  if (!authenticated) {
+  const currentAdmin = await getServerCurrentAdmin();
+  if (!currentAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -38,8 +40,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  const authenticated = await isServerAdminAuthenticated();
-  if (!authenticated) {
+  const currentAdmin = await getServerCurrentAdmin();
+  if (!currentAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -51,12 +53,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
   try {
     const body = await request.json();
-    const updated = await updateQuestion(id, {
-      text: body.text,
-      category: body.category,
-      type: body.type,
-      tags: body.tags,
-    });
+    const updated = await updateQuestion(
+      id,
+      {
+        text: body.text,
+        category: body.category,
+        type: body.type,
+        tags: body.tags,
+      },
+      currentAdmin
+    );
 
     if (!updated) {
       return NextResponse.json({ error: 'Question not found' }, { status: 404 });
@@ -73,8 +79,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const authenticated = await isServerAdminAuthenticated();
-  if (!authenticated) {
+  const currentAdmin = await getServerCurrentAdmin();
+  if (!currentAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -85,7 +91,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   }
 
   try {
-    const deleted = await deleteQuestion(id);
+    const deleted = await deleteQuestion(id, currentAdmin);
     if (!deleted) {
       return NextResponse.json({ error: 'Question not found' }, { status: 404 });
     }
