@@ -14,10 +14,55 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://icebreaker-questions-kappa.vercel.app';
+
 export const metadata: Metadata = {
-  title: 'Icebreaker Question Bank | Holographic Canvas Card Experience',
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: 'Để mình hiểu nhau hơn | Icebreaker Questions',
+    template: '%s | Để mình hiểu nhau hơn',
+  },
   description:
-    'A curated collection of 236 icebreaker questions with interactive 3D holographic canvas cards, multi-tier category filters, and fullscreen presentation stage mode.',
+    'Bộ câu hỏi mình tổng hợp cho các buổi gặp mặt, hội nhóm để mấy ní đỡ phải suy nghĩ phải hỏi gì',
+  applicationName: 'Để Mình Hiểu Nhau Hơn',
+  authors: [{ name: 'An Phuc' }],
+  keywords: [
+    'để mình hiểu nhau hơn',
+    'icebreaker questions',
+    'câu hỏi phá băng',
+    'câu hỏi kết nối',
+    'team building',
+    'hội nhóm',
+    'game kết nối',
+  ],
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'vi_VN',
+    url: APP_URL,
+    siteName: 'Để Mình Hiểu Nhau Hơn - Icebreaker Questions',
+    title: 'Để mình hiểu nhau hơn',
+    description:
+      'Bộ câu hỏi mình tổng hợp cho các buổi gặp mặt, hội nhóm để mấy ní đỡ phải suy nghĩ phải hỏi gì',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Để mình hiểu nhau hơn - Icebreaker Questions',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Để mình hiểu nhau hơn',
+    description:
+      'Bộ câu hỏi mình tổng hợp cho các buổi gặp mặt, hội nhóm để mấy ní đỡ phải suy nghĩ phải hỏi gì',
+    images: ['/og-image.png'],
+  },
 };
 
 /**
