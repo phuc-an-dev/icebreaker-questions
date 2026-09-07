@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Timer as TimerIcon } from 'lucide-react';
 import { formatSeconds } from '@/lib/utils';
+import { hapticFeedback } from '@/lib/haptics';
 
 interface TimerWidgetProps {
   initialSeconds?: number;
@@ -61,6 +62,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
           if (prev <= 1) {
             clearInterval(intervalRef.current!);
             setIsRunning(false);
+            hapticFeedback.warning();
             playChime();
             if (onFinish) onFinish();
             return 0;
@@ -77,9 +79,13 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
     };
   }, [isRunning, timeLeft, onFinish, playChime]);
 
-  const toggleTimer = () => setIsRunning(!isRunning);
+  const toggleTimer = () => {
+    hapticFeedback.light();
+    setIsRunning(!isRunning);
+  };
 
   const resetTimer = (newSeconds?: number) => {
+    hapticFeedback.light();
     setIsRunning(false);
     const sec = newSeconds ?? totalSeconds;
     setTotalSeconds(sec);
@@ -97,7 +103,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
   return (
     <div
-      className={`flex items-center gap-2.5 rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 backdrop-blur-md ${className}`}
+      className={`flex items-center gap-2.5 rounded-xl border border-edge-strong bg-surface-card/80 px-3 py-2 backdrop-blur-md ${className}`}
     >
       {/* SVG Progress Ring */}
       <div className="relative flex items-center justify-center">
@@ -110,7 +116,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             cx={radius + strokeWidth}
             cy={radius + strokeWidth}
             r={radius}
-            className="stroke-slate-700/50"
+            className="stroke-edge"
             strokeWidth={strokeWidth}
             fill="transparent"
           />
@@ -132,7 +138,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
         <div className="absolute inset-0 flex items-center justify-center">
           <TimerIcon
             className={`w-3.5 h-3.5 ${
-              isUrgent ? 'animate-pulse text-rose-400' : 'text-slate-400'
+              isUrgent ? 'animate-pulse text-rose-400' : 'text-content-muted'
             }`}
           />
         </div>
@@ -143,7 +149,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
         <span
           className={`font-mono font-bold tracking-wider ${
             compact ? 'text-sm' : 'text-base'
-          } ${isUrgent ? 'animate-pulse text-rose-400' : 'text-slate-100'}`}
+          } ${isUrgent ? 'animate-pulse text-rose-400' : 'text-content'}`}
         >
           {formatSeconds(timeLeft)}
         </span>
@@ -155,8 +161,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 onClick={() => resetTimer(s)}
                 className={`rounded px-1.5 py-0.5 text-[10px] transition-colors ${
                   totalSeconds === s
-                    ? 'bg-blue-500/20 text-blue-300 font-semibold'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-300 font-semibold'
+                    : 'text-content-muted hover:text-content'
                 }`}
               >
                 {s}s
@@ -172,8 +178,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
           onClick={toggleTimer}
           className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
             isRunning
-              ? 'border-blue-500/40 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
-              : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+              ? 'border-blue-500/40 bg-blue-500/20 text-blue-600 dark:text-blue-300 hover:bg-blue-500/30'
+              : 'border-edge bg-black/5 dark:bg-white/5 text-content hover:bg-black/10 dark:hover:bg-white/10'
           }`}
           title={isRunning ? 'Pause' : 'Start'}
           aria-label={isRunning ? 'Pause timer' : 'Start timer'}
@@ -183,7 +189,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
         <button
           onClick={() => resetTimer()}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-edge bg-black/5 dark:bg-white/5 text-content-muted transition-colors hover:bg-black/10 dark:hover:bg-white/10 hover:text-content"
           title="Reset timer"
           aria-label="Reset timer"
         >

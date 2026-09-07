@@ -34,6 +34,9 @@ export const StageCanvasBg: React.FC<StageCanvasBgProps> = ({
     let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth);
     let height = (canvas.height = canvas.parentElement?.clientHeight || window.innerHeight);
 
+    // Detect dark mode reactively
+    const isDark = () => document.documentElement.classList.contains('dark');
+
     const handleResize = () => {
       if (!canvas || !canvas.parentElement) return;
       width = canvas.width = canvas.parentElement.clientWidth;
@@ -67,6 +70,10 @@ export const StageCanvasBg: React.FC<StageCanvasBgProps> = ({
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
+      const dark = isDark();
+
+      // Connecting line color adapts to theme
+      const lineColorBase = dark ? '255, 255, 255' : '0, 0, 0';
 
       // Connect nearby particles
       const maxDist = 110;
@@ -79,8 +86,8 @@ export const StageCanvasBg: React.FC<StageCanvasBgProps> = ({
           const dist = Math.hypot(dx, dy);
 
           if (dist < maxDist) {
-            const lineAlpha = (1 - dist / maxDist) * 0.18;
-            ctx.strokeStyle = `rgba(255, 255, 255, ${lineAlpha})`;
+            const lineAlpha = (1 - dist / maxDist) * (dark ? 0.18 : 0.1);
+            ctx.strokeStyle = `rgba(${lineColorBase}, ${lineAlpha})`;
             ctx.lineWidth = 0.8;
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
@@ -118,8 +125,9 @@ export const StageCanvasBg: React.FC<StageCanvasBgProps> = ({
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Subtle glow halo
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+        // Subtle glow halo — adapts to theme
+        const haloColor = dark ? `rgba(255, 255, 255, ${alpha * 0.3})` : `rgba(0, 0, 0, ${alpha * 0.08})`;
+        ctx.fillStyle = haloColor;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius * 2.2, 0, Math.PI * 2);
         ctx.fill();
@@ -140,7 +148,8 @@ export const StageCanvasBg: React.FC<StageCanvasBgProps> = ({
   return (
     <canvas
       ref={canvasRef}
-      className={`pointer-events-none absolute inset-0 h-full w-full opacity-60 ${className}`}
+      className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}
+      style={{ opacity: 'var(--canvas-particle-opacity)' }}
     />
   );
 };

@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useId, useCallback, useSyncExternal
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, Check } from 'lucide-react';
 import { IconHelper } from '@/components/ui/IconHelper';
+import { hapticFeedback } from '@/lib/haptics';
 
 export interface DropdownOption {
   id: string;
@@ -79,123 +80,155 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     );
   });
 
-  // Calculate dropdown position relative to viewport
-  const calculatePosition = useCallback(() => {
+  // Calculate fixed portal positioning relative to trigger
+  const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const DROPDOWN_HEIGHT = 288; // max-h-72
+    const dropdownHeight = 280; // Approximate max popover height
     const spaceBelow = window.innerHeight - rect.bottom;
-    const openUpward = spaceBelow < DROPDOWN_HEIGHT && rect.top > DROPDOWN_HEIGHT;
+    const spaceAbove = rect.top;
+    const openUpward = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+
     setPosition({
-      top: openUpward ? rect.top - 8 : rect.bottom + 6,
+      top: openUpward ? rect.top : rect.bottom + 6,
       left: rect.left,
       width: rect.width,
       openUpward,
     });
   }, []);
 
-  const openDropdown = useCallback(() => {
-    calculatePosition();
-    const currentIdx = options.findIndex((opt) => opt.id === value);
-    setHighlightedIndex(currentIdx >= 0 ? currentIdx : 0);
+  const openDropdown = () => {
+    if (disabled) return;
+    hapticFeedback.light();
+    updatePosition();
     setSearch('');
+    // Highlight currently selected option index
+    const curIndex = options.findIndex((opt) => opt.id === value);
+    setHighlightedIndex(curIndex >= 0 ? curIndex : 0);
     setIsOpen(true);
-  }, [calculatePosition, options, value]);
+  };
 
-  const closeDropdown = useCallback((refocusTrigger = true) => {
+  const closeDropdown = useCallback((returnFocusToTrigger = true) => {
     setIsOpen(false);
     setSearch('');
-    if (refocusTrigger) {
-      setTimeout(() => triggerRef.current?.focus(), 0);
+    if (returnFocusToTrigger) {
+      triggerRef.current?.focus();
     }
   }, []);
 
-  // Update position on scroll / resize while open
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleUpdate = () => calculatePosition();
-    window.addEventListener('scroll', handleUpdate, true);
-    window.addEventListener('resize', handleUpdate);
-    return () => {
-      window.removeEventListener('scroll', handleUpdate, true);
-      window.removeEventListener('resize', handleUpdate);
-    };
-  }, [isOpen, calculatePosition]);
-
-  // Close on click outside (trigger + portal popover)
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        !containerRef.current?.contains(target) &&
-        !popoverRef.current?.contains(target)
-      ) {
-        setIsOpen(false);
-        setSearch('');
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  // Focus search input after open
-  useEffect(() => {
-    if (!isOpen) return;
-    const timer = setTimeout(() => searchInputRef.current?.focus(), 50);
-    return () => clearTimeout(timer);
-  }, [isOpen]);
-
-  // Scroll highlighted option into view
-  useEffect(() => {
-    if (!isOpen || highlightedIndex < 0 || highlightedIndex >= filteredOptions.length) return;
-    optionRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [isOpen, highlightedIndex, filteredOptions.length]);
-
+  // Handle option selection
   const handleSelectOption = (opt: DropdownOption) => {
+    hapticFeedback.light();
     onChange(opt.id);
     closeDropdown(true);
   };
 
-  const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (disabled) return;
-    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (isOpen) { closeDropdown(false); } else { openDropdown(); }
+  // Focus search input on open & re-scroll highlighted item
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+        // Scroll highlighted item into view
+        if (optionRefs.current[highlightedIndex]) {
+          optionRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+        }
+      }, 30);
+      return () => clearTimeout(timer);
     }
-  };
+  }, [isOpen, highlightedIndex]);
 
+  // Recalculate position on scroll or resize
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleScrollOrResize = () => updatePosition();
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen, updatePosition]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        popoverRef.current &&
+        !popoverRef.current.contains(target)
+      ) {
+        closeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isOpen, closeDropdown]);
+
+  // Keyboard navigation inside search input
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Escape') { e.preventDefault(); closeDropdown(true); return; }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (filteredOptions.length > 0) setHighlightedIndex((p) => (p + 1) % filteredOptions.length);
+      const nextIdx = filteredOptions.length > 0 ? (highlightedIndex + 1) % filteredOptions.length : 0;
+      setHighlightedIndex(nextIdx);
+      optionRefs.current[nextIdx]?.focus();
       return;
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (filteredOptions.length > 0) setHighlightedIndex((p) => (p - 1 + filteredOptions.length) % filteredOptions.length);
+      const prevIdx = filteredOptions.length > 0 ? (highlightedIndex - 1 + filteredOptions.length) % filteredOptions.length : 0;
+      setHighlightedIndex(prevIdx);
+      optionRefs.current[prevIdx]?.focus();
       return;
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (filteredOptions.length > 0 && highlightedIndex >= 0 && highlightedIndex < filteredOptions.length)
+      if (filteredOptions[highlightedIndex]) {
         handleSelectOption(filteredOptions[highlightedIndex]);
+      }
       return;
     }
-    if (e.key === 'Tab' && !e.shiftKey && filteredOptions.length > 0) {
+    if (e.key === 'Escape') {
       e.preventDefault();
-      optionRefs.current[highlightedIndex >= 0 ? highlightedIndex : 0]?.focus();
+      closeDropdown(true);
+      return;
+    }
+    if (e.key === 'Tab') {
+      if (e.shiftKey) {
+        // Shift+Tab → close & focus back to trigger
+        e.preventDefault();
+        closeDropdown(true);
+      }
+      // Natural Tab moves into first option button
     }
   };
 
+  // Keyboard navigation on trigger
+  const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openDropdown();
+    }
+  };
+
+  // Keyboard navigation inside option button
   const handleOptionKeyDown = (
     e: React.KeyboardEvent<HTMLButtonElement>,
     idx: number,
     opt: DropdownOption
   ) => {
-    if (e.key === 'Escape') { e.preventDefault(); closeDropdown(true); return; }
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectOption(opt); return; }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeDropdown(true);
+      return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSelectOption(opt);
+      return;
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       const next = (idx + 1) % filteredOptions.length;
@@ -211,8 +244,12 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
       return;
     }
     if (e.key === 'Tab') {
-      if (e.shiftKey) { e.preventDefault(); searchInputRef.current?.focus(); }
-      else { closeDropdown(false); }
+      if (e.shiftKey) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else {
+        closeDropdown(false);
+      }
     }
   };
 
@@ -229,13 +266,15 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   return (
     <div ref={containerRef} className="relative w-full">
       {/* Label */}
-      <label
-        id={`${dropdownId}-label`}
-        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2"
-      >
-        {icon}
-        {label}
-      </label>
+      {label && (
+        <label
+          id={`${dropdownId}-label`}
+          className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-content-muted mb-2"
+        >
+          {icon}
+          {label}
+        </label>
+      )}
 
       {/* Trigger Button */}
       <button
@@ -245,14 +284,14 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={listboxId}
-        aria-labelledby={`${dropdownId}-label`}
+        aria-labelledby={label ? `${dropdownId}-label` : undefined}
         disabled={disabled}
         onClick={() => (isOpen ? closeDropdown(false) : openDropdown())}
         onKeyDown={handleTriggerKeyDown}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-950/60 border rounded-xl text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+        className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-surface-input border rounded-xl text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
           isOpen
             ? 'border-blue-500 ring-2 ring-blue-500/30'
-            : 'border-slate-700 hover:border-slate-600'
+            : 'border-edge-strong hover:border-edge-strong/80'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       >
         <div className="flex items-center gap-2.5 overflow-hidden">
@@ -270,16 +309,16 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                   <IconHelper name={selectedOption.iconName} className="w-3.5 h-3.5" />
                 </div>
               )}
-              <span className="text-slate-100 font-medium truncate">{selectedOption.label}</span>
-              <span className="text-xs text-slate-500 font-mono shrink-0">({selectedOption.id})</span>
+              <span className="text-content font-medium truncate">{selectedOption.label}</span>
+              <span className="text-xs text-content-muted font-mono shrink-0">({selectedOption.id})</span>
             </>
           ) : (
-            <span className="text-slate-500">{placeholder}</span>
+            <span className="text-content-muted">{placeholder}</span>
           )}
         </div>
         <ChevronDown
-          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-blue-400' : ''
+          className={`w-4 h-4 text-content-muted shrink-0 transition-transform duration-200 ${
+            isOpen ? 'rotate-180 text-blue-500 dark:text-blue-400' : ''
           }`}
         />
       </button>
@@ -291,22 +330,25 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             ref={popoverRef}
             id={listboxId}
             role="listbox"
-            aria-labelledby={`${dropdownId}-label`}
+            aria-labelledby={label ? `${dropdownId}-label` : undefined}
             style={portalStyle}
-            className="bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden flex flex-col max-h-72"
+            className="bg-surface-card border border-edge-strong rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-72"
           >
             {/* Search */}
-            <div className="p-2.5 border-b border-slate-800 bg-slate-950/80 shrink-0">
+            <div className="p-2.5 border-b border-edge bg-surface-elevated/60 shrink-0">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-muted pointer-events-none" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={search}
-                  onChange={(e) => { setSearch(e.target.value); setHighlightedIndex(0); }}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setHighlightedIndex(0);
+                  }}
                   onKeyDown={handleSearchKeyDown}
                   placeholder={searchPlaceholder}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-slate-100 text-xs placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-9 pr-3 py-1.5 bg-surface-input border border-edge-strong rounded-xl text-content text-xs placeholder-content-muted focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
                 />
               </div>
             </div>
@@ -315,11 +357,10 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             <div
               ref={listRef}
               tabIndex={-1}
-              className="overflow-y-auto p-1.5 space-y-0.5 flex-1 min-h-0"
-              style={{ scrollbarWidth: 'thin', scrollbarColor: '#334155 transparent' }}
+              className="overflow-y-auto p-1.5 space-y-0.5 flex-1 min-h-0 custom-scrollbar"
             >
               {filteredOptions.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-500 italic">
+                <div className="py-6 text-center text-xs text-content-muted italic">
                   No matching options found
                 </div>
               ) : (
@@ -329,7 +370,9 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                   return (
                     <button
                       key={opt.id}
-                      ref={(el) => { optionRefs.current[idx] = el; }}
+                      ref={(el) => {
+                        optionRefs.current[idx] = el;
+                      }}
                       type="button"
                       role="option"
                       aria-selected={isSelected}
@@ -339,10 +382,10 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                       onKeyDown={(e) => handleOptionKeyDown(e, idx, opt)}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition cursor-pointer focus:outline-none ${
                         isHighlighted
-                          ? 'bg-blue-600/20 text-white ring-1 ring-blue-500/40'
+                          ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/40'
                           : isSelected
-                          ? 'bg-slate-800/80 text-blue-300'
-                          : 'text-slate-300 hover:bg-slate-800/60'
+                          ? 'bg-surface-elevated text-blue-600 dark:text-blue-400 font-semibold'
+                          : 'text-content-secondary hover:bg-surface-elevated'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 pr-2">
@@ -359,16 +402,16 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                           </div>
                         )}
                         <div className="truncate">
-                          <div className="font-semibold text-slate-100 flex items-center gap-1.5">
+                          <div className="font-semibold text-content flex items-center gap-1.5">
                             <span>{opt.label}</span>
-                            <span className="text-[10px] text-slate-500 font-mono">({opt.id})</span>
+                            <span className="text-[10px] text-content-muted font-mono">({opt.id})</span>
                           </div>
                           {opt.sublabel && (
-                            <p className="text-[11px] text-slate-400 truncate mt-0.5">{opt.sublabel}</p>
+                            <p className="text-[11px] text-content-muted truncate mt-0.5">{opt.sublabel}</p>
                           )}
                         </div>
                       </div>
-                      {isSelected && <Check className="w-4 h-4 text-blue-400 shrink-0 ml-2" />}
+                      {isSelected && <Check className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0 ml-2" />}
                     </button>
                   );
                 })

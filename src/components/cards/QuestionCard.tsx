@@ -12,6 +12,7 @@ import {
   Copy,
   Maximize2,
 } from 'lucide-react';
+import { hapticFeedback } from '@/lib/haptics';
 
 interface QuestionCardProps {
   question: Question;
@@ -37,6 +38,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(question.text);
+    hapticFeedback.light();
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
@@ -46,8 +48,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       categoryColor={cat.color}
       className={`group flex flex-col justify-between overflow-hidden border backdrop-blur-md transition-all duration-300 ${
         isAsked
-          ? 'border-slate-800/80 bg-slate-950/60 opacity-60 hover:opacity-100'
-          : 'border-slate-800/90 bg-slate-900/80 hover:border-slate-700/90 hover:shadow-xl hover:shadow-black/40'
+          ? 'border-edge opacity-60 hover:opacity-100 bg-surface/60 dark:bg-surface/60'
+          : 'border-edge hover:border-edge-strong hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/40 bg-surface-card/80 dark:bg-surface-card/80'
       }`}
     >
       <div className="flex h-full flex-col justify-between p-4 sm:p-5">
@@ -56,10 +58,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <div className="flex items-center justify-between gap-2 pb-3">
             {/* Category Badge */}
             <div
-              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium tracking-wide text-white shadow-sm whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm whitespace-nowrap"
               style={{
-                backgroundColor: `${cat.color}28`,
-                border: `1px solid ${cat.color}66`,
+                backgroundColor: `${cat.color}18`,
+                border: `1px solid ${cat.color}44`,
                 color: cat.color,
               }}
             >
@@ -69,13 +71,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
             {/* Question ID & Stage View Button */}
             <div className="flex items-center gap-1">
-              <span className="font-mono text-xs font-semibold text-slate-500">
+              <span className="font-mono text-xs font-semibold text-content-muted">
                 #{question.id.toString().padStart(3, '0')}
               </span>
 
               <button
                 onClick={() => onOpenStage(question)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 opacity-80 sm:opacity-0 transition-all hover:bg-white/10 hover:text-slate-200 group-hover:opacity-100"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-content-muted opacity-80 sm:opacity-0 transition-all hover:bg-black/5 dark:hover:bg-white/10 hover:text-content group-hover:opacity-100"
                 title="Fullscreen Presentation Mode"
                 aria-label="Open presentation mode"
               >
@@ -86,32 +88,32 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
           {/* Dedicated Question Type & Full Instruction Banner (No truncation, no awkward wraps) */}
           {typeMeta && (
-            <div className="mb-3.5 rounded-xl border border-white/5 bg-white/[0.03] p-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-300/90 whitespace-nowrap">
-                <IconHelper name={typeMeta.iconName} className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+            <div className="mb-3.5 rounded-xl border border-edge-subtle bg-surface-elevated/50 p-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-300/90 whitespace-nowrap">
+                <IconHelper name={typeMeta.iconName} className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
                 <span>{typeMeta.label}</span>
               </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+              <p className="mt-1 text-[11px] leading-relaxed text-content-muted">
                 {typeMeta.hint}
               </p>
             </div>
           )}
 
           {/* Question Main Text */}
-          <p className="text-base font-medium leading-relaxed text-slate-100 selection:bg-blue-500/30">
+          <p className="text-base font-medium leading-relaxed text-content selection:bg-blue-500/30">
             {question.text}
           </p>
         </div>
 
         {/* Bottom Section */}
-        <div className="mt-5 pt-3 border-t border-slate-800/60">
+        <div className="mt-5 pt-3 border-t border-edge">
           {/* Tags */}
           {question.tags.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5">
               {question.tags.map((t) => (
                 <span
                   key={t}
-                  className="rounded-md bg-slate-800/60 px-2 py-0.5 text-[10px] font-medium text-slate-400 border border-slate-700/40"
+                  className="rounded-md bg-surface-elevated/60 px-2 py-0.5 text-[10px] font-medium text-content-muted border border-edge-subtle"
                 >
                   {TAG_LABELS[t] || t}
                 </span>
@@ -123,21 +125,24 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <div className="flex items-center justify-between pt-1">
             {/* Asked Toggle Button */}
             <button
-              onClick={() => onToggleAsked(question.id)}
+              onClick={() => {
+                hapticFeedback.light();
+                onToggleAsked(question.id);
+              }}
               className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
                 isAsked
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                  : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white'
+                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                  : 'bg-black/5 dark:bg-white/5 text-content-secondary border border-edge hover:bg-black/10 dark:hover:bg-white/10 hover:text-content'
               }`}
             >
               {isAsked ? (
                 <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
                   <span>Asked</span>
                 </>
               ) : (
                 <>
-                  <Check className="h-3.5 w-3.5 text-slate-400" />
+                  <Check className="h-3.5 w-3.5 text-content-muted" />
                   <span>Mark as asked</span>
                 </>
               )}
@@ -148,12 +153,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               {/* Copy button */}
               <button
                 onClick={handleCopy}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-content-muted transition-colors hover:bg-black/5 dark:hover:bg-white/10 hover:text-content"
                 title={copied ? 'Copied!' : 'Copy question text'}
                 aria-label="Copy question"
               >
                 {copied ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
                 ) : (
                   <Copy className="h-3.5 w-3.5" />
                 )}
@@ -161,11 +166,14 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
               {/* Bookmark / Favorite button */}
               <button
-                onClick={() => onToggleFavorite(question.id)}
+                onClick={() => {
+                  hapticFeedback.light();
+                  onToggleFavorite(question.id);
+                }}
                 className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
                   isFavorite
-                    ? 'text-amber-400 hover:bg-amber-400/20'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                    ? 'text-amber-500 dark:text-amber-400 hover:bg-amber-400/20'
+                    : 'text-content-muted hover:bg-black/5 dark:hover:bg-white/10 hover:text-content'
                 }`}
                 title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 aria-label="Toggle favorite"

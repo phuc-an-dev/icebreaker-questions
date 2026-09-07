@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect } from 'react';
 import { FilterState, Question, QuestionTypeId } from '@/types/question';
 import { QUESTION_TYPES, TAG_LABELS } from '@/data/metadata';
 import { IconHelper } from '@/components/ui/IconHelper';
+import { ModalShell } from '@/components/ui/ModalShell';
+import { hapticFeedback } from '@/lib/haptics';
 import {
   Search,
   X,
@@ -36,7 +37,6 @@ interface FilterBarProps {
   isSearching?: boolean;
 }
 
-const emptySubscribe = () => () => {};
 
 export const FilterBar: React.FC<FilterBarProps> = ({
   filters,
@@ -56,7 +56,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'types' | 'tags'>('types');
-  const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -109,21 +108,21 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         {/* Search Input */}
         <div className="relative flex-1">
           {isSearching ? (
-            <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-blue-400" />
+            <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-blue-500 dark:text-blue-400" />
           ) : (
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-content-muted" />
           )}
           <input
             type="text"
             value={filters.search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search questions..."
-            className="h-10 w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-9 pr-8 text-sm text-slate-100 placeholder-slate-500 backdrop-blur-md transition-all focus:border-blue-400/60 focus:outline-none focus:ring-1 focus:ring-blue-400/40"
+            className="h-10 w-full rounded-xl border border-edge bg-surface-input pl-9 pr-8 text-sm text-content placeholder-content-muted backdrop-blur-md transition-all focus:border-blue-400/60 focus:outline-none focus:ring-1 focus:ring-blue-400/40"
           />
           {filters.search && (
             <button
               onClick={() => onSearchChange('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-content-muted hover:text-content"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
@@ -136,8 +135,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           onClick={() => setIsModalOpen(true)}
           className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium backdrop-blur-md transition-all ${
             activeFiltersCount > 0
-              ? 'border-blue-500/60 bg-blue-500/20 text-blue-300 font-semibold'
-              : 'border-slate-800 bg-slate-900/80 text-slate-300 hover:border-slate-700'
+              ? 'border-blue-500/60 bg-blue-500/20 text-blue-600 dark:text-blue-300 font-semibold'
+              : 'border-edge bg-surface-card/80 text-content-secondary hover:border-edge-strong'
           }`}
           title="Filter options"
         >
@@ -153,10 +152,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         {/* Presentation Button */}
         <button
           onClick={() => onOpenStage()}
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-slate-900/90 px-3 text-slate-200 backdrop-blur-md transition-all hover:bg-slate-800"
+          className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-edge bg-surface-card/90 px-3 text-content backdrop-blur-md transition-all hover:bg-surface-elevated"
           title="Presentation Mode"
         >
-          <Presentation className="h-4 w-4 text-blue-400" />
+          <Presentation className="h-4 w-4 text-blue-500 dark:text-blue-400" />
         </button>
 
         {/* Random Draw Button */}
@@ -171,15 +170,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       </div>
 
       {/* Quick Status & Toggles row (Strictly single line, horizontal scroll if needed) */}
-      <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+      <div className="flex items-center justify-between gap-2 text-xs text-content-muted">
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0">
           {/* Hide asked toggle */}
           <button
             onClick={() => onToggleHideAsked(!filters.hideAsked)}
             className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] transition-colors ${
               filters.hideAsked
-                ? 'border-blue-500/40 bg-blue-500/15 text-blue-300 font-medium'
-                : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
+                ? 'border-blue-500/40 bg-blue-500/15 text-blue-600 dark:text-blue-300 font-medium'
+                : 'border-edge bg-surface-card/50 text-content-muted hover:border-edge-strong'
             }`}
           >
             {filters.hideAsked ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
@@ -191,8 +190,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             onClick={() => onToggleOnlyFavorites(!filters.onlyFavorites)}
             className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] transition-colors ${
               filters.onlyFavorites
-                ? 'border-blue-500/40 bg-blue-500/15 text-blue-300 font-medium'
-                : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
+                ? 'border-blue-500/40 bg-blue-500/15 text-blue-600 dark:text-blue-300 font-medium'
+                : 'border-edge bg-surface-card/50 text-content-muted hover:border-edge-strong'
             }`}
           >
             <Bookmark className="h-3 w-3" fill={filters.onlyFavorites ? 'currentColor' : 'none'} />
@@ -203,7 +202,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           {activeFiltersCount > 0 && (
             <button
               onClick={onResetFilters}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-rose-500/10 px-2 py-0.5 text-[11px] text-rose-300 border border-rose-500/30 hover:bg-rose-500/20"
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-rose-500/10 px-2 py-0.5 text-[11px] text-rose-600 dark:text-rose-300 border border-rose-500/30 hover:bg-rose-500/20"
             >
               <RotateCcw className="h-3 w-3" />
               <span>Clear ({activeFiltersCount})</span>
@@ -212,133 +211,128 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* Result Counter */}
-        <span className="shrink-0 font-mono text-[11px] text-slate-400 pl-1">
-          <span className="font-bold text-blue-400">{filteredCount}</span>/{totalCount}
+        <span className="shrink-0 font-mono text-[11px] text-content-muted pl-1">
+          <span className="font-bold text-blue-500 dark:text-blue-400">{filteredCount}</span>/{totalCount}
         </span>
       </div>
 
-      {/* Modal / Bottom Sheet rendered via React Portal directly into body to escape any backdrop-filter containing block */}
-      {isMounted &&
-        isModalOpen &&
-        createPortal(
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md transition-opacity">
-            {/* Overlay click to close */}
-            <div className="absolute inset-0" onClick={() => setIsModalOpen(false)} />
+      {/* Modal / Bottom Sheet */}
+      <ModalShell
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Filter Options"
+        subtitle="Filter questions by format and thematic tags"
+        icon={<SlidersHorizontal className="h-4 w-4 text-blue-500 dark:text-blue-400" />}
+        maxWidth="lg"
+        subHeader={
+          <div className="mx-5 sm:mx-6 mt-3 flex rounded-xl bg-surface-elevated p-1 border border-edge">
+            <button
+              onClick={() => {
+                setActiveTab('types');
+                hapticFeedback.light();
+              }}
+              className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                activeTab === 'types'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-content-muted hover:text-content'
+              }`}
+            >
+              Question Types ({typeFrequencies.length})
+              {selectedTypesCount > 0 && ` • ${selectedTypesCount}`}
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('tags');
+                hapticFeedback.light();
+              }}
+              className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                activeTab === 'tags'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-content-muted hover:text-content'
+              }`}
+            >
+              Topics / Tags ({tagFrequencies.length})
+              {selectedTagsCount > 0 && ` • ${selectedTagsCount}`}
+            </button>
+          </div>
+        }
+        footer={
+          <div className="flex items-center justify-between gap-3 w-full">
+            <button
+              onClick={() => {
+                onResetFilters();
+                hapticFeedback.light();
+              }}
+              className="inline-flex items-center gap-1 text-xs text-content-muted hover:text-content px-3 py-2 rounded-lg hover:bg-surface-elevated transition min-h-[40px]"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>Reset all</span>
+            </button>
 
-            {/* Sheet container */}
-            <div className="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-3xl sm:rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200">
-              {/* Header (Always pinned at top of modal) */}
-              <div className="shrink-0 flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4 text-blue-400" />
-                  <h3 className="text-base font-bold text-white">Filter Options</h3>
-                </div>
+            <button
+              onClick={() => {
+                setIsModalOpen(false);
+                hapticFeedback.light();
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 transition min-h-[44px]"
+            >
+              <span>View {filteredCount} questions</span>
+            </button>
+          </div>
+        }
+        contentClassName="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1 custom-scrollbar"
+      >
+        {activeTab === 'types' ? (
+          <div className="flex flex-wrap gap-2">
+            {typeFrequencies.map(({ id, meta, count }) => {
+              const isSelected = filters.types.includes(id);
+              return (
                 <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-slate-400 hover:text-white"
-                  aria-label="Close"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Segmented Tab Control */}
-              <div className="shrink-0 mt-3 flex rounded-xl bg-slate-900 p-1 border border-slate-800">
-                <button
-                  onClick={() => setActiveTab('types')}
-                  className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
-                    activeTab === 'types'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Question Types ({typeFrequencies.length})
-                  {selectedTypesCount > 0 && ` • ${selectedTypesCount}`}
-                </button>
-                <button
-                  onClick={() => setActiveTab('tags')}
-                  className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
-                    activeTab === 'tags'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Topics / Tags ({tagFrequencies.length})
-                  {selectedTagsCount > 0 && ` • ${selectedTagsCount}`}
-                </button>
-              </div>
-
-              {/* Scrollable Items Container */}
-              <div className="my-3 flex-1 overflow-y-auto pr-1">
-                {activeTab === 'types' ? (
-                  <div className="flex flex-wrap gap-2 py-1">
-                    {typeFrequencies.map(({ id, meta, count }) => {
-                      const isSelected = filters.types.includes(id);
-                      return (
-                        <button
-                          key={id}
-                          onClick={() => onToggleType(id)}
-                          className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
-                            isSelected
-                              ? 'border border-cyan-400/80 bg-cyan-400/20 text-cyan-200 font-semibold'
-                              : 'border border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                          }`}
-                        >
-                          <IconHelper name={meta.iconName} className="h-3.5 w-3.5" />
-                          <span>{meta.label}</span>
-                          <span className="text-[10px] text-slate-500">({count})</span>
-                          {isSelected && <Check className="h-3 w-3 text-cyan-400 ml-0.5" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2 py-1">
-                    {tagFrequencies.map(({ tag, label, count }) => {
-                      const isSelected = filters.tags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          onClick={() => onToggleTag(tag)}
-                          className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
-                            isSelected
-                              ? 'border border-rose-400/80 bg-rose-400/20 text-rose-200 font-semibold'
-                              : 'border border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                          }`}
-                        >
-                          <span>{label}</span>
-                          <span className="text-[10px] text-slate-500">({count})</span>
-                          {isSelected && <Check className="h-3 w-3 text-rose-400 ml-0.5" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom Actions Bar in Sheet (Always pinned at bottom of modal) */}
-              <div className="shrink-0 flex items-center justify-between gap-3 pt-3 border-t border-slate-800">
-                <button
+                  key={id}
                   onClick={() => {
-                    onResetFilters();
+                    onToggleType(id);
+                    hapticFeedback.light();
                   }}
-                  className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-white"
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
+                    isSelected
+                      ? 'border border-cyan-500/80 dark:border-cyan-400/80 bg-cyan-500/20 dark:bg-cyan-400/20 text-cyan-700 dark:text-cyan-200 font-semibold'
+                      : 'border border-edge bg-surface-card/60 text-content-muted hover:border-edge-strong hover:text-content'
+                  }`}
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  <span>Reset</span>
+                  <IconHelper name={meta.iconName} className="h-3.5 w-3.5" />
+                  <span>{meta.label}</span>
+                  <span className="text-[10px] text-content-muted">({count})</span>
+                  {isSelected && <Check className="h-3 w-3 text-cyan-500 dark:text-cyan-400 ml-0.5" />}
                 </button>
-
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {tagFrequencies.map(({ tag, label, count }) => {
+              const isSelected = filters.tags.includes(tag);
+              return (
                 <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 transition-all hover:brightness-110"
+                  key={tag}
+                  onClick={() => {
+                    onToggleTag(tag);
+                    hapticFeedback.light();
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
+                    isSelected
+                      ? 'border border-rose-500/80 dark:border-rose-400/80 bg-rose-500/20 dark:bg-rose-400/20 text-rose-700 dark:text-rose-200 font-semibold'
+                      : 'border border-edge bg-surface-card/60 text-content-muted hover:border-edge-strong hover:text-content'
+                  }`}
                 >
-                  <span>View {filteredCount} questions</span>
+                  <span>{label}</span>
+                  <span className="text-[10px] text-content-muted">({count})</span>
+                  {isSelected && <Check className="h-3 w-3 text-rose-500 dark:text-rose-400 ml-0.5" />}
                 </button>
-              </div>
-            </div>
-          </div>,
-          document.body
+              );
+            })}
+          </div>
         )}
+      </ModalShell>
     </div>
   );
 };

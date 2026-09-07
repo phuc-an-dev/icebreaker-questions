@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { ModalShell } from '@/components/ui/ModalShell';
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -24,61 +25,50 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  if (!isOpen) return null;
+  const footer = (
+    <div className="flex items-center justify-between sm:justify-end gap-3 w-full">
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={isDeleting}
+        className="flex-1 sm:flex-initial px-4 py-2.5 text-xs sm:text-sm font-semibold text-content-secondary hover:text-content bg-surface-elevated hover:bg-surface-elevated/80 border border-edge rounded-xl transition min-h-[44px]"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        onClick={onConfirm}
+        disabled={isDeleting}
+        className="flex-1 sm:flex-initial px-5 py-2.5 text-xs sm:text-sm font-semibold text-white bg-red-600 hover:bg-red-500 rounded-xl shadow-lg shadow-red-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[44px]"
+      >
+        {isDeleting && (
+          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        )}
+        <span>{confirmLabel}</span>
+      </button>
+    </div>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-6 overflow-hidden">
-        {/* Ambient red glow */}
-        <div className="absolute -top-16 -right-16 w-32 h-32 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-semibold text-white">{title}</h3>
-          </div>
-          <button
-            onClick={onCancel}
-            disabled={isDeleting}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <p className="text-sm text-slate-300 mb-6 leading-relaxed">
-          {message}
-          {typeof itemCount === 'number' && itemCount > 0 && (
-            <span className="block mt-2 font-mono text-xs text-red-400 bg-red-950/40 border border-red-800/40 px-3 py-1.5 rounded-lg">
-              Total items affected: {itemCount}
-            </span>
-          )}
-        </p>
-
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl transition"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500 rounded-xl shadow-lg shadow-red-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isDeleting && (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            )}
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onCancel}
+      title={title}
+      icon={<AlertTriangle className="w-5 h-5 text-red-500 dark:text-red-400" />}
+      maxWidth="md"
+      variant="danger"
+      isSubmitting={isDeleting}
+      footer={footer}
+      contentClassName="p-5 sm:p-6 space-y-4"
+    >
+      <p className="text-sm text-content-secondary leading-relaxed">
+        {message}
+        {typeof itemCount === 'number' && itemCount > 0 && (
+          <span className="block mt-2 font-mono text-xs text-red-500 dark:text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-1.5 rounded-lg">
+            Total items affected: {itemCount}
+          </span>
+        )}
+      </p>
+    </ModalShell>
   );
 };

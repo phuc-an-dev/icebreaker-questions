@@ -5,6 +5,7 @@ import { CategoryId, Question } from '@/types/question';
 import { CATEGORIES } from '@/data/metadata';
 import { IconHelper } from '@/components/ui/IconHelper';
 import { Layers } from 'lucide-react';
+import { hapticFeedback } from '@/lib/haptics';
 
 interface CategoryChipsProps {
   selectedCategories: CategoryId[];
@@ -36,18 +37,21 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
     <div className="flex w-full items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
       {/* "All" chip */}
       <button
-        onClick={() => onClearCategories && onClearCategories()}
+        onClick={() => {
+          hapticFeedback.light();
+          if (onClearCategories) onClearCategories();
+        }}
         className={`group shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
           isAllSelected
-            ? 'border border-blue-500/80 bg-blue-500/20 text-white shadow-sm ring-1 ring-blue-400/40'
-            : 'border border-slate-800 bg-slate-900/70 text-slate-400 hover:border-slate-700 hover:text-white'
+            ? 'border border-blue-500/80 bg-blue-500/20 text-blue-700 dark:text-white shadow-sm ring-1 ring-blue-400/40'
+            : 'border border-edge bg-surface-card/70 text-content-muted hover:border-edge-strong hover:text-content'
         }`}
       >
         <Layers className="h-3.5 w-3.5" />
         <span>All</span>
         <span
           className={`rounded-md px-1.5 py-0.2 text-[10px] font-semibold ${
-            isAllSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+            isAllSelected ? 'bg-blue-500/20 dark:bg-white/20 text-blue-700 dark:text-white' : 'bg-surface-elevated text-content-muted'
           }`}
         >
           {questions.length}
@@ -63,11 +67,14 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
         return (
           <button
             key={id}
-            onClick={() => onToggleCategory(id)}
+            onClick={() => {
+              hapticFeedback.light();
+              onToggleCategory(id);
+            }}
             className={`group shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
               isSelected
                 ? 'shadow-md ring-1'
-                : 'border border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-800/80 hover:text-white'
+                : 'border border-edge bg-surface-card/60 text-content-secondary hover:border-edge-strong hover:bg-surface-elevated/80 hover:text-content'
             }`}
             style={{
               borderColor: isSelected ? cat.color : undefined,
@@ -97,7 +104,7 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
               className={`rounded-md px-1.5 py-0.2 text-[10px] font-semibold transition-colors ${
                 isSelected
                   ? 'bg-white/20 text-white'
-                  : 'bg-slate-800 text-slate-400 group-hover:text-slate-300'
+                  : 'bg-surface-elevated text-content-muted group-hover:text-content-secondary'
               }`}
             >
               {count}

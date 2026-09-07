@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { hapticFeedback } from '@/lib/haptics';
+import { ModalShell } from '@/components/ui/ModalShell';
 import {
   Sparkles,
   Plus,
@@ -20,6 +22,10 @@ import {
   CheckSquare,
   Square,
   RefreshCw,
+  SlidersHorizontal,
+  Copy,
+  Check,
+  X,
 } from 'lucide-react';
 import { CategoryMeta, Question, TypeMeta } from '@/types/question';
 import { IconHelper } from '@/components/ui/IconHelper';
@@ -30,6 +36,7 @@ import { ImportExportModal } from './ImportExportModal';
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { useToast } from '@/hooks/useToast';
 import { SearchableDropdown, DropdownOption } from './SearchableDropdown';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 interface AdminDashboardProps {
   initialCategories: CategoryMeta[];
@@ -57,7 +64,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
   // Filter & Sorting State
   const [search, setSearch] = useState('');
@@ -66,6 +73,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [selectedType, setSelectedType] = useState('all');
   const [sortBy, setSortBy] = useState<'id' | 'text' | 'category' | 'type'>('id');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Mobile drawer & interaction states
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -122,24 +134,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     fetch(`/api/admin/questions?${params.toString()}`)
       .then((res) => {
-        if (res.status === 401) {
-          router.push('/admin/login');
-          return null;
-        }
+        if (!res.ok) throw new Error('Failed to fetch questions');
         return res.json();
       })
       .then((data) => {
-        if (!ignore && data) {
+        if (!ignore) {
           setQuestions(data.questions || []);
           setTotalQuestions(data.total || 0);
           setTotalPages(data.totalPages || 1);
+          setIsLoadingQuestions(false);
         }
       })
       .catch((err) => {
-        console.error('Failed to fetch admin questions:', err);
-      })
-      .finally(() => {
         if (!ignore) {
+          console.error(err);
+          toast({ type: 'error', title: 'Loading error', description: 'Could not fetch questions from server.' });
           setIsLoadingQuestions(false);
         }
       });
@@ -147,50 +156,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return () => {
       ignore = true;
     };
-  }, [page, limit, debouncedSearch, selectedCategory, selectedType, sortBy, sortOrder, router, refreshKey]);
+  }, [page, limit, debouncedSearch, selectedCategory, selectedType, sortBy, sortOrder, refreshKey, toast]);
 
-  // Refresh categories & types
-  const refreshCategories = async () => {
+  // Fetch Categories & Types refresh
+  const refreshCategories = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/categories');
       if (res.ok) {
         const data = await res.json();
-        setCategories(data.categories || []);
+        setCategories(data);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
     }
-  };
+  }, []);
 
-  const refreshTypes = async () => {
+  const refreshTypes = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/types');
       if (res.ok) {
         const data = await res.json();
-        setTypes(data.types || []);
+        setTypes(data);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
     }
-  };
+  }, []);
 
   // Sign out handler
   const handleLogout = async () => {
-    try {
-      await fetch('/api/admin/login', { method: 'DELETE' });
-      startTransition(() => {
+    startTransition(async () => {
+      try {
+        await fetch('/api/admin/auth', { method: 'DELETE' });
         router.push('/admin/login');
         router.refresh();
-      });
-    } catch (err) {
-      console.error(err);
-    }
+      } catch {
+        router.push('/admin/login');
+      }
+    });
+  };
+
+  // Copy Question Text
+  const handleCopyQuestionText = (q: Question) => {
+    navigator.clipboard.writeText(q.text);
+    setCopiedId(q.id);
+    toast({ type: 'info', title: 'Copied to clipboard', description: `Question #${q.id} text copied.` });
+    setTimeout(() => setCopiedId(null), 1800);
   };
 
   // Sorting helper
   const handleToggleSort = (field: 'id' | 'text' | 'category' | 'type') => {
     if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortBy(field);
       setSortOrder('asc');
@@ -198,24 +215,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setPage(1);
   };
 
-  // Selection helpers
-  const handleToggleSelectRow = (id: number) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
+  // Bulk selection helpers
   const handleToggleSelectAllOnPage = () => {
     const pageIds = questions.map((q) => q.id);
     const allSelected = pageIds.every((id) => selectedIds.includes(id));
     if (allSelected) {
       setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
     } else {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+      const newSet = new Set([...selectedIds, ...pageIds]);
+      setSelectedIds(Array.from(newSet));
     }
   };
 
-  // Delete Confirm Action
+  const handleToggleSelectRow = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  // Delete Action Dispatcher
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
@@ -226,11 +244,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           method: 'DELETE',
         });
         if (res.ok) {
+          toast({ type: 'success', title: 'Question deleted', description: `Question #${deleteTarget.id} was removed.` });
           setSelectedIds((prev) => prev.filter((id) => id !== deleteTarget.id));
           triggerReloadQuestions();
-          toast({ type: 'success', title: 'Question deleted', description: `Question #${deleteTarget.id} has been permanently removed.` });
         } else {
-          toast({ type: 'error', title: 'Delete failed', description: 'Could not delete the question. Please try again.' });
+          toast({ type: 'error', title: 'Delete failed', description: 'Could not delete the question.' });
         }
       } else if (deleteTarget.type === 'bulk_questions') {
         const res = await fetch('/api/admin/questions', {
@@ -239,7 +257,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           body: JSON.stringify({ ids: selectedIds }),
         });
         if (res.ok) {
-          toast({ type: 'success', title: `${selectedIds.length} questions deleted`, description: 'Selected questions have been permanently removed.' });
+          const data = await res.json();
+          toast({
+            type: 'success',
+            title: 'Bulk deletion completed',
+            description: `Permanently removed ${data.deletedCount} questions.`,
+          });
           setSelectedIds([]);
           triggerReloadQuestions();
         } else {
@@ -375,44 +398,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const isPageAllSelected =
     questions.length > 0 && questions.every((q) => selectedIds.includes(q.id));
 
+  const activeFilterCount = (selectedCategory !== 'all' ? 1 : 0) + (selectedType !== 'all' ? 1 : 0);
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
-      {/* Top Admin Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md px-4 sm:px-8 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-lg shadow-blue-500/10">
-            <Database className="w-5 h-5" />
+    <div className="min-h-screen bg-surface text-content flex flex-col selection:bg-blue-600 selection:text-white">
+      {/* Top Admin Header (Mobile Optimized - Never Cut Off) */}
+      <header className="sticky top-0 z-30 border-b border-edge bg-surface/85 backdrop-blur-md px-3 sm:px-8 py-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-lg shadow-blue-500/10 shrink-0">
+            <Database className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <h1 className="text-sm sm:text-lg font-bold text-content tracking-tight truncate">
                 Icebreaker Admin
               </h1>
-              <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full">
+              <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full shrink-0">
                 Portal v2.0
               </span>
             </div>
-            <p className="text-xs text-slate-400 hidden sm:block">
+            <p className="text-xs text-content-muted hidden sm:block">
               Connected to MongoDB Atlas &bull; {totalQuestions} Questions Live
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <ThemeToggle />
           <a
             href="/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition shadow-sm"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-medium text-content-secondary hover:text-content bg-surface-card hover:bg-surface-elevated border border-edge rounded-xl transition shadow-sm min-h-[38px]"
+            title="Open Public App"
           >
-            <span>Public App</span>
+            <span className="hidden sm:inline">Public App</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
 
           <button
             onClick={handleLogout}
             disabled={isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 bg-red-950/20 hover:bg-red-950/40 border border-red-800/40 rounded-xl transition shadow-sm"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-medium text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl transition shadow-sm min-h-[38px]"
+            title="Sign Out"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Sign Out</span>
@@ -420,23 +448,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </header>
 
-      {/* Main Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 md:p-8 space-y-6">
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+      {/* Main Body with Mobile Safe Area Padding */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3.5 sm:p-6 md:p-8 space-y-5 pb-28 sm:pb-12">
+        {/* Navigation Tabs (Swipeable Pills on Mobile) */}
+        <div className="flex items-center gap-2 border-b border-edge pb-3 overflow-x-auto no-scrollbar -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
           <button
-            onClick={() => setActiveTab('questions')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+            onClick={() => {
+              setActiveTab('questions');
+              hapticFeedback.light();
+            }}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
               activeTab === 'questions'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                : 'text-content-muted hover:text-content hover:bg-surface-card'
             }`}
           >
             <Sparkles className="w-4 h-4" />
             <span>Questions</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full ${
-                activeTab === 'questions' ? 'bg-blue-700 text-white' : 'bg-slate-800 text-slate-400'
+                activeTab === 'questions' ? 'bg-blue-700 text-white' : 'bg-surface-elevated text-content-muted'
               }`}
             >
               {totalQuestions}
@@ -444,18 +475,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('categories')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+            onClick={() => {
+              setActiveTab('categories');
+              hapticFeedback.light();
+            }}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
               activeTab === 'categories'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                : 'text-content-muted hover:text-content hover:bg-surface-card'
             }`}
           >
             <Layers className="w-4 h-4" />
             <span>Categories</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full ${
-                activeTab === 'categories' ? 'bg-blue-700 text-white' : 'bg-slate-800 text-slate-400'
+                activeTab === 'categories' ? 'bg-blue-700 text-white' : 'bg-surface-elevated text-content-muted'
               }`}
             >
               {categories.length}
@@ -463,18 +497,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('types')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+            onClick={() => {
+              setActiveTab('types');
+              hapticFeedback.light();
+            }}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
               activeTab === 'types'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                : 'text-content-muted hover:text-content hover:bg-surface-card'
             }`}
           >
             <MessageSquareQuote className="w-4 h-4" />
             <span>Question Types</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full ${
-                activeTab === 'types' ? 'bg-blue-700 text-white' : 'bg-slate-800 text-slate-400'
+                activeTab === 'types' ? 'bg-blue-700 text-white' : 'bg-surface-elevated text-content-muted'
               }`}
             >
               {types.length}
@@ -485,24 +522,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* TAB 1: QUESTIONS */}
         {activeTab === 'questions' && (
           <div className="space-y-4">
-            {/* Top Toolbar */}
-            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+            {/* Desktop Toolbar (Hidden on Mobile) */}
+            <div className="hidden md:flex gap-3 items-center justify-between">
               {/* Search & Filters */}
               <div className="flex flex-1 flex-wrap gap-2 items-center">
                 {/* Search Bar */}
                 <div className="relative flex-1 min-w-[220px]">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted" />
                   <input
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search by question text..."
-                    className="w-full pl-10 pr-4 py-2 bg-slate-900/90 border border-slate-700/80 rounded-xl text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-2 bg-surface-card/90 border border-edge-strong/80 rounded-xl text-content text-sm placeholder-content-muted focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
                   {search && (
                     <button
                       onClick={() => setSearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-content-muted hover:text-content"
                     >
                       Clear
                     </button>
@@ -552,7 +589,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <button
                   onClick={() => triggerReloadQuestions()}
                   title="Reload questions"
-                  className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-slate-400 hover:text-white transition"
+                  className="p-2 bg-surface-card hover:bg-surface-elevated border border-edge-strong/80 rounded-xl text-content-muted hover:text-content transition"
                 >
                   <RefreshCw
                     className={`w-4 h-4 ${isLoadingQuestions ? 'animate-spin text-blue-400' : ''}`}
@@ -564,7 +601,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => setIsImportExportOpen(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-200 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition"
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-content hover:text-white bg-surface-card hover:bg-surface-elevated border border-edge-strong/80 rounded-xl transition"
                 >
                   <DownloadCloud className="w-4 h-4 text-blue-400" />
                   <span>Import / Export</span>
@@ -583,16 +620,98 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
-            {/* Bulk Action Bar (Visible when rows selected) */}
+            {/* Mobile Toolbar (Compact 2-row Layout for Screens < md) */}
+            <div className="flex md:hidden flex-col gap-2">
+              {/* Row 1: Search input */}
+              <div className="relative w-full">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search questions..."
+                  className="w-full pl-10 pr-9 py-2.5 bg-surface-card border border-edge-strong/80 rounded-xl text-content text-sm placeholder-content-muted focus:outline-none focus:border-blue-500"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-content-muted hover:text-content p-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Row 2: Filter Drawer Button, Select Mode Toggle, Import/Export, Refresh */}
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  {/* Filter Button */}
+                  <button
+                    onClick={() => setIsMobileFilterOpen(true)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition shrink-0 ${
+                      activeFilterCount > 0
+                        ? 'bg-blue-600/20 border-blue-500 text-blue-300'
+                        : 'bg-surface-card border-edge-strong/80 text-content-secondary hover:text-content'
+                    }`}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Filters</span>
+                    {activeFilterCount > 0 && (
+                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Select Mode Toggle */}
+                  <button
+                    onClick={() => {
+                      setIsSelectMode(!isSelectMode);
+                      if (isSelectMode) setSelectedIds([]);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition shrink-0 ${
+                      isSelectMode
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-surface-card border-edge-strong/80 text-content-secondary hover:text-content'
+                    }`}
+                  >
+                    <CheckSquare className="w-3.5 h-3.5" />
+                    <span>{isSelectMode ? 'Done' : 'Select'}</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Import / Export */}
+                  <button
+                    onClick={() => setIsImportExportOpen(true)}
+                    className="p-2 bg-surface-card border border-edge-strong/80 rounded-xl text-content-secondary hover:text-content transition"
+                    title="Import / Export Data"
+                  >
+                    <DownloadCloud className="w-4 h-4 text-blue-400" />
+                  </button>
+
+                  {/* Refresh Button */}
+                  <button
+                    onClick={() => triggerReloadQuestions()}
+                    className="p-2 bg-surface-card border border-edge-strong/80 rounded-xl text-content-muted hover:text-content transition"
+                    title="Reload questions"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isLoadingQuestions ? 'animate-spin text-blue-400' : ''}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Bulk Action Bar */}
             {selectedIds.length > 0 && (
-              <div className="flex items-center justify-between p-3 bg-blue-950/40 border border-blue-800/50 rounded-xl animate-fadeIn">
+              <div className="hidden md:flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl animate-fadeIn">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-blue-300">
+                  <span className="text-sm font-semibold text-blue-600 dark:text-blue-300">
                     {selectedIds.length} question{selectedIds.length > 1 ? 's' : ''} selected
                   </span>
                   <button
                     onClick={() => setSelectedIds([])}
-                    className="text-xs text-slate-400 hover:text-white underline transition"
+                    className="text-xs text-content-muted hover:text-content underline transition"
                   >
                     Deselect all
                   </button>
@@ -615,16 +734,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             )}
 
-            {/* Questions Table */}
-            <div className="border border-slate-800 bg-slate-900/60 rounded-2xl overflow-hidden shadow-xl">
+            {/* Desktop Questions Table (Visible on md and above) */}
+            <div className="hidden md:block border border-edge bg-surface-card/60 rounded-2xl overflow-hidden shadow-xl">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-slate-300">
-                  <thead className="bg-slate-950/80 text-xs uppercase font-semibold text-slate-400 border-b border-slate-800">
+                <table className="w-full text-left text-sm text-content-secondary">
+                  <thead className="bg-surface/80 text-xs uppercase font-semibold text-content-muted border-b border-edge">
                     <tr>
                       <th className="p-4 w-12 text-center">
                         <button
                           onClick={handleToggleSelectAllOnPage}
-                          className="text-slate-400 hover:text-white"
+                          className="text-content-muted hover:text-content"
                         >
                           {isPageAllSelected ? (
                             <CheckSquare className="w-4 h-4 text-blue-400" />
@@ -636,19 +755,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <th className="p-4 w-20">
                         <button
                           onClick={() => handleToggleSort('id')}
-                          className="flex items-center gap-1.5 hover:text-white transition"
+                          className="flex items-center gap-1.5 hover:text-content transition"
                         >
                           <span>ID</span>
-                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                          <ArrowUpDown className="w-3.5 h-3.5 text-content-muted" />
                         </button>
                       </th>
                       <th className="p-4">
                         <button
                           onClick={() => handleToggleSort('text')}
-                          className="flex items-center gap-1.5 hover:text-white transition"
+                          className="flex items-center gap-1.5 hover:text-content transition"
                         >
                           <span>Question Text</span>
-                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                          <ArrowUpDown className="w-3.5 h-3.5 text-content-muted" />
                         </button>
                       </th>
                       <th className="p-4 w-52">Category</th>
@@ -657,17 +776,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <th className="p-4 w-28 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-edge/60">
                     {isLoadingQuestions && questions.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-12 text-center text-slate-400">
+                        <td colSpan={7} className="p-12 text-center text-content-muted">
                           <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                           Loading questions from database...
                         </td>
                       </tr>
                     ) : questions.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-12 text-center text-slate-400">
+                        <td colSpan={7} className="p-12 text-center text-content-muted">
                           No questions found matching your search or filters.
                         </td>
                       </tr>
@@ -680,31 +799,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         return (
                           <tr
                             key={q.id}
-                            className={`transition hover:bg-slate-800/40 ${
-                              isSelected ? 'bg-blue-950/20' : ''
+                            className={`transition hover:bg-surface-elevated/40 ${
+                              isSelected ? 'bg-blue-500/10' : ''
                             }`}
                           >
                             {/* Checkbox */}
                             <td className="p-4 text-center">
                               <button
                                 onClick={() => handleToggleSelectRow(q.id)}
-                                className="text-slate-400 hover:text-white"
+                                className="text-content-muted hover:text-content"
                               >
                                 {isSelected ? (
                                   <CheckSquare className="w-4 h-4 text-blue-400" />
                                 ) : (
-                                  <Square className="w-4 h-4 text-slate-600 hover:text-slate-400" />
+                                  <Square className="w-4 h-4 text-content-muted hover:text-content-secondary" />
                                 )}
                               </button>
                             </td>
 
                             {/* ID */}
-                            <td className="p-4 font-mono text-xs text-slate-400 font-semibold">
+                            <td className="p-4 font-mono text-xs text-content-muted font-semibold">
                               #{q.id}
                             </td>
 
                             {/* Text */}
-                            <td className="p-4 text-slate-100 font-medium leading-relaxed max-w-md">
+                            <td className="p-4 text-content font-medium leading-relaxed max-w-md">
                               {q.text}
                             </td>
 
@@ -725,7 +844,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                             {/* Type Pill */}
                             <td className="p-4 whitespace-nowrap">
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs text-slate-300 bg-slate-800/80 border border-slate-700/60">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs text-content-secondary bg-surface-elevated/80 border border-edge-strong/60">
                                 <IconHelper name={tMeta.iconName} className="w-3 h-3 text-blue-400" />
                                 {tMeta.label}
                               </span>
@@ -738,16 +857,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   q.tags.slice(0, 3).map((tag) => (
                                     <span
                                       key={tag}
-                                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400"
+                                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-content-muted"
                                     >
                                       #{tag}
                                     </span>
                                   ))
                                 ) : (
-                                  <span className="text-xs text-slate-600">-</span>
+                                  <span className="text-xs text-content-muted">-</span>
                                 )}
                                 {q.tags && q.tags.length > 3 && (
-                                  <span className="text-[10px] text-slate-500 self-center">
+                                  <span className="text-[10px] text-content-muted self-center">
                                     +{q.tags.length - 3}
                                   </span>
                                 )}
@@ -763,7 +882,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     setIsQuestionModalOpen(true);
                                   }}
                                   title="Edit question"
-                                  className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition"
+                                  className="p-1.5 text-content-muted hover:text-blue-400 hover:bg-surface-elevated rounded-lg transition"
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
@@ -781,7 +900,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     setIsDeleteModalOpen(true);
                                   }}
                                   title="Delete question"
-                                  className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
+                                  className="p-1.5 text-content-muted hover:text-red-400 hover:bg-surface-elevated rounded-lg transition"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -794,55 +913,214 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </tbody>
                 </table>
               </div>
+            </div>
 
-              {/* Pagination Bar */}
-              <div className="p-4 bg-slate-950/80 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-xs text-slate-400">
-                  <span>
-                    Showing {Math.min(totalQuestions, (page - 1) * limit + 1)} -{' '}
-                    {Math.min(totalQuestions, page * limit)} of {totalQuestions} questions
-                  </span>
-
-                  <div className="flex items-center gap-1.5">
-                    <span>Rows:</span>
-                    {[10, 20, 50, 100].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => { setLimit(n); setPage(1); }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition ${
-                          limit === n
-                            ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
+            {/* Mobile Question Cards View (Visible on screens < md) */}
+            <div className="block md:hidden space-y-3">
+              {/* Select all bar in Select Mode */}
+              {isSelectMode && questions.length > 0 && (
+                <div className="flex items-center justify-between p-3 bg-surface-card/90 border border-edge rounded-xl text-xs font-semibold">
                   <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    className="p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    onClick={handleToggleSelectAllOnPage}
+                    className="flex items-center gap-2 text-content-secondary hover:text-content"
                   >
-                    <ArrowLeft className="w-4 h-4" />
+                    {isPageAllSelected ? (
+                      <CheckSquare className="w-4 h-4 text-blue-400" />
+                    ) : (
+                      <Square className="w-4 h-4 text-content-muted" />
+                    )}
+                    <span>Select all on page</span>
                   </button>
-
-                  <span className="text-xs font-semibold px-2 text-slate-300">
-                    Page {page} of {totalPages}
-                  </span>
-
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                    className="p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  <span className="text-content-muted font-mono">{selectedIds.length} selected</span>
                 </div>
+              )}
+
+              {isLoadingQuestions && questions.length === 0 ? (
+                <div className="p-8 text-center text-content-muted bg-surface-card/60 border border-edge rounded-2xl">
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-xs">Loading questions from database...</p>
+                </div>
+              ) : questions.length === 0 ? (
+                <div className="p-8 text-center text-content-muted bg-surface-card/60 border border-edge rounded-2xl">
+                  <p className="text-sm font-semibold text-content-secondary">No questions found</p>
+                  <p className="text-xs text-content-muted mt-1">Try adjusting your search or active filters.</p>
+                </div>
+              ) : (
+                questions.map((q) => {
+                  const isSelected = selectedIds.includes(q.id);
+                  const catMeta = getCategoryMeta(q.category);
+                  const tMeta = getTypeMeta(q.type);
+
+                  return (
+                    <div
+                      key={q.id}
+                      className={`p-4 bg-surface-card/80 border rounded-2xl transition space-y-3 shadow-sm ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/40'
+                          : 'border-edge/90 hover:border-edge-strong'
+                      }`}
+                    >
+                      {/* Top Card Meta Row */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isSelectMode && (
+                            <button
+                              onClick={() => handleToggleSelectRow(q.id)}
+                              className="text-content-muted hover:text-content shrink-0"
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="w-5 h-5 text-blue-400" />
+                              ) : (
+                                <Square className="w-5 h-5 text-content-muted" />
+                              )}
+                            </button>
+                          )}
+                          <span className="font-mono text-xs font-bold text-content-muted shrink-0">
+                            #{q.id}
+                          </span>
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border truncate max-w-[130px]"
+                            style={{
+                              backgroundColor: `${catMeta.color}15`,
+                              borderColor: `${catMeta.color}35`,
+                              color: catMeta.color,
+                            }}
+                          >
+                            <IconHelper name={catMeta.iconName} className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{catMeta.label}</span>
+                          </span>
+                        </div>
+
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-content-secondary bg-surface-elevated/90 border border-edge-strong/60 shrink-0">
+                          <IconHelper name={tMeta.iconName} className="w-3 h-3 text-blue-400 shrink-0" />
+                          <span className="truncate max-w-[110px]">{tMeta.label}</span>
+                        </span>
+                      </div>
+
+                      {/* Question Text in Vietnamese */}
+                      <p className="text-sm font-medium text-content leading-relaxed">
+                        {q.text}
+                      </p>
+
+                      {/* Tags */}
+                      {q.tags && q.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {q.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface/80 text-content-muted border border-edge"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Card Actions Row (Min 44px Touch Target) */}
+                      <div className="pt-2.5 border-t border-edge/80 flex items-center justify-between gap-2">
+                        <button
+                          onClick={() => handleCopyQuestionText(q)}
+                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-content-secondary hover:text-content bg-surface-elevated/80 hover:bg-surface-elevated border border-edge rounded-xl transition min-h-[44px] active:scale-95 cursor-pointer"
+                        >
+                          {copiedId === q.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              setEditingQuestion(q);
+                              setIsQuestionModalOpen(true);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 active:bg-blue-500/25 border border-blue-500/25 dark:border-blue-500/30 rounded-xl transition min-h-[44px] shadow-sm active:scale-95 cursor-pointer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeleteTarget({
+                                type: 'single_question',
+                                id: q.id,
+                                title: `Delete Question #${q.id}?`,
+                                message: `Are you sure you want to delete question #${q.id}: "${q.text.slice(
+                                  0,
+                                  60
+                                )}..."?`,
+                              });
+                              setIsDeleteModalOpen(true);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/25 border border-red-500/25 dark:border-red-500/30 rounded-xl transition min-h-[44px] shadow-sm active:scale-95 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Pagination Bar (Responsive for Desktop & Mobile) */}
+            <div className="p-3.5 sm:p-4 bg-surface/80 border border-edge rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-content-muted w-full sm:w-auto">
+                <span>
+                  Showing {Math.min(totalQuestions, (page - 1) * limit + 1)} -{' '}
+                  {Math.min(totalQuestions, page * limit)} of {totalQuestions} questions
+                </span>
+
+                <div className="flex items-center gap-1">
+                  <span>Rows:</span>
+                  {[10, 20, 50].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => { setLimit(n); setPage(1); }}
+                      className={`px-2 py-1 rounded-lg text-xs font-medium border transition ${
+                        limit === n
+                          ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
+                          : 'bg-surface-card border-edge-strong text-content-muted hover:text-content'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="p-2 sm:p-1.5 rounded-xl border border-edge-strong bg-surface-card text-content-secondary hover:text-content disabled:opacity-40 disabled:cursor-not-allowed transition min-w-[40px] min-h-[40px] flex items-center justify-center"
+                  aria-label="Previous page"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+
+                <span className="text-xs font-semibold px-2 text-content-secondary">
+                  Page {page} of {totalPages}
+                </span>
+
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="p-2 sm:p-1.5 rounded-xl border border-edge-strong bg-surface-card text-content-secondary hover:text-content disabled:opacity-40 disabled:cursor-not-allowed transition min-w-[40px] min-h-[40px] flex items-center justify-center"
+                  aria-label="Next page"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>
@@ -851,10 +1129,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* TAB 2: CATEGORIES */}
         {activeTab === 'categories' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-white">Categories Management</h2>
-                <p className="text-xs text-slate-400">
+                <h2 className="text-base sm:text-lg font-bold text-content">Categories Management</h2>
+                <p className="text-xs text-content-muted">
                   Customize themes, labels, colors, and visual identifiers
                 </p>
               </div>
@@ -864,24 +1142,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   setEditingCatType(null);
                   setIsCatTypeModalOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/30 transition"
+                className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/30 transition shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Category</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
               {categories.map((cat) => (
                 <div
                   key={cat.id}
-                  className="p-5 rounded-2xl border bg-slate-900/70 relative overflow-hidden flex flex-col justify-between transition hover:border-slate-600"
+                  className="p-4 sm:p-5 rounded-2xl border bg-surface-card/70 relative overflow-hidden flex flex-col justify-between transition hover:border-edge-strong"
                   style={{ borderColor: `${cat.color}35` }}
                 >
                   <div>
                     <div className="flex items-start justify-between mb-3">
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm shrink-0"
                         style={{
                           backgroundColor: `${cat.color}15`,
                           borderColor: `${cat.color}40`,
@@ -898,7 +1176,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             setEditingCatType(cat);
                             setIsCatTypeModalOpen(true);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition"
+                          className="p-2.5 text-content-muted hover:text-blue-400 hover:bg-surface-elevated rounded-xl transition min-w-[40px] min-h-[40px] flex items-center justify-center"
                           title="Edit Category"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -913,7 +1191,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             });
                             setIsDeleteModalOpen(true);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
+                          className="p-2.5 text-content-muted hover:text-red-400 hover:bg-surface-elevated rounded-xl transition min-w-[40px] min-h-[40px] flex items-center justify-center"
                           title="Delete Category"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -921,21 +1199,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     </div>
 
-                    <h3 className="text-base font-bold text-white mb-1">{cat.label}</h3>
-                    <p className="text-xs font-mono text-slate-500 mb-2">id: {cat.id}</p>
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <h3 className="text-base font-bold text-content mb-1">{cat.label}</h3>
+                    <p className="text-xs font-mono text-content-muted mb-2">id: {cat.id}</p>
+                    <p className="text-xs text-content-muted leading-relaxed">
                       {cat.description || 'No description provided.'}
                     </p>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Accent:</span>
+                  <div className="mt-4 pt-3 border-t border-edge/80 flex items-center justify-between text-xs">
+                    <span className="text-content-muted">Accent:</span>
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-3.5 h-3.5 rounded-full border border-slate-700"
+                        className="w-3.5 h-3.5 rounded-full border border-edge-strong"
                         style={{ backgroundColor: cat.color }}
                       />
-                      <span className="font-mono text-slate-400">{cat.color}</span>
+                      <span className="font-mono text-content-muted">{cat.color}</span>
                     </div>
                   </div>
                 </div>
@@ -947,10 +1225,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* TAB 3: QUESTION TYPES */}
         {activeTab === 'types' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-white">Question Formats & Types</h2>
-                <p className="text-xs text-slate-400">
+                <h2 className="text-base sm:text-lg font-bold text-content">Question Formats & Types</h2>
+                <p className="text-xs text-content-muted">
                   Define interaction rules and gameplay instructions for questions
                 </p>
               </div>
@@ -960,22 +1238,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   setEditingCatType(null);
                   setIsCatTypeModalOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/30 transition"
+                className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/30 transition shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Question Type</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
               {types.map((t) => (
                 <div
                   key={t.id}
-                  className="p-5 rounded-2xl border border-slate-800 bg-slate-900/70 hover:border-slate-700 transition flex flex-col justify-between"
+                  className="p-4 sm:p-5 rounded-2xl border border-edge bg-surface-card/70 hover:border-edge-strong transition flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-start justify-between mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
                         <IconHelper name={t.iconName} className="w-5 h-5" />
                       </div>
 
@@ -986,7 +1264,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             setEditingCatType(t);
                             setIsCatTypeModalOpen(true);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition"
+                          className="p-2.5 text-content-muted hover:text-blue-400 hover:bg-surface-elevated rounded-xl transition min-w-[40px] min-h-[40px] flex items-center justify-center"
                           title="Edit Type"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -1001,7 +1279,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             });
                             setIsDeleteModalOpen(true);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
+                          className="p-2.5 text-content-muted hover:text-red-400 hover:bg-surface-elevated rounded-xl transition min-w-[40px] min-h-[40px] flex items-center justify-center"
                           title="Delete Type"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1009,16 +1287,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     </div>
 
-                    <h3 className="text-base font-bold text-white mb-1">{t.label}</h3>
-                    <p className="text-xs font-mono text-slate-500 mb-2">id: {t.id}</p>
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <h3 className="text-base font-bold text-content mb-1">{t.label}</h3>
+                    <p className="text-xs font-mono text-content-muted mb-2">id: {t.id}</p>
+                    <p className="text-xs text-content-muted leading-relaxed">
                       {t.hint || 'No interaction hint provided.'}
                     </p>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
+                  <div className="mt-4 pt-3 border-t border-edge/80 flex items-center justify-between text-xs text-content-muted">
                     <span>Icon:</span>
-                    <span className="font-mono text-slate-400">{t.iconName}</span>
+                    <span className="font-mono text-content-muted">{t.iconName}</span>
                   </div>
                 </div>
               ))}
@@ -1026,6 +1304,207 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
       </main>
+
+      {/* Mobile Floating Action Button (FAB) (Option 4.A) */}
+      <div className="fixed bottom-6 right-4 sm:hidden z-30">
+        {activeTab === 'questions' && (
+          <button
+            onClick={() => {
+              setEditingQuestion(null);
+              setIsQuestionModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 active:scale-95 text-white font-semibold rounded-full shadow-2xl shadow-blue-600/60 transition-transform"
+            aria-label="New Question"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="text-xs font-bold uppercase tracking-wider">New Question</span>
+          </button>
+        )}
+        {activeTab === 'categories' && (
+          <button
+            onClick={() => {
+              setCatTypeMode('category');
+              setEditingCatType(null);
+              setIsCatTypeModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 active:scale-95 text-white font-semibold rounded-full shadow-2xl shadow-blue-600/60 transition-transform"
+            aria-label="Add Category"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="text-xs font-bold uppercase tracking-wider">Add Category</span>
+          </button>
+        )}
+        {activeTab === 'types' && (
+          <button
+            onClick={() => {
+              setCatTypeMode('type');
+              setEditingCatType(null);
+              setIsCatTypeModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 active:scale-95 text-white font-semibold rounded-full shadow-2xl shadow-blue-600/60 transition-transform"
+            aria-label="Add Question Type"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="text-xs font-bold uppercase tracking-wider">Add Type</span>
+          </button>
+        )}
+      </div>
+
+      {/* Mobile Sticky Bulk Action Bar (Option 7.A) */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-4 inset-x-3 z-40 md:hidden bg-surface-card/95 border border-blue-500/60 rounded-2xl shadow-2xl p-3 flex items-center justify-between backdrop-blur-xl ring-1 ring-white/10 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-blue-300">
+              {selectedIds.length} selected
+            </span>
+            <button
+              onClick={() => setSelectedIds([])}
+              className="text-xs text-content-muted hover:text-content underline"
+            >
+              Clear
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              setDeleteTarget({
+                type: 'bulk_questions',
+                title: `Delete ${selectedIds.length} Questions?`,
+                message: `Are you sure you want to permanently delete these ${selectedIds.length} selected questions from the database? This action cannot be undone.`,
+                count: selectedIds.length,
+              });
+              setIsDeleteModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-xl shadow transition active:scale-95"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Selected</span>
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Filter Drawer / Bottom Sheet (Standardized with ModalShell) */}
+      <ModalShell
+        isOpen={isMobileFilterOpen}
+        onClose={() => setIsMobileFilterOpen(false)}
+        title="Filters & Sorting"
+        icon={<SlidersHorizontal className="w-5 h-5 text-blue-400" />}
+        maxWidth="md"
+      >
+        <div className="flex flex-col h-full max-h-[80vh]">
+          {/* Scrollable Filters Body */}
+          <div className="p-5 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
+            {/* Filter Category */}
+            <div>
+              <SearchableDropdown
+                label="Filter by Category"
+                icon={<Layers className="w-3.5 h-3.5 text-blue-400" />}
+                options={[
+                  { id: 'all', label: 'All Categories', iconName: 'Layers' },
+                  ...categories.map((c): DropdownOption => ({
+                    id: c.id,
+                    label: c.label,
+                    color: c.color,
+                    iconName: c.iconName,
+                  })),
+                ]}
+                value={selectedCategory}
+                onChange={(val) => { setSelectedCategory(val); setPage(1); }}
+                placeholder="All Categories"
+                searchPlaceholder="Search category..."
+              />
+            </div>
+
+            {/* Filter Format */}
+            <div>
+              <SearchableDropdown
+                label="Filter by Format"
+                icon={<MessageSquareQuote className="w-3.5 h-3.5 text-indigo-400" />}
+                options={[
+                  { id: 'all', label: 'All Formats', iconName: 'MessageSquareQuote' },
+                  ...types.map((t): DropdownOption => ({
+                    id: t.id,
+                    label: t.label,
+                    iconName: t.iconName,
+                  })),
+                ]}
+                value={selectedType}
+                onChange={(val) => { setSelectedType(val); setPage(1); }}
+                placeholder="All Formats"
+                searchPlaceholder="Search format..."
+              />
+            </div>
+
+            {/* Sort Options */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-content-muted mb-2">
+                Sort Questions By
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { key: 'id', label: 'ID Number' },
+                  { key: 'text', label: 'Question Text' },
+                  { key: 'category', label: 'Category' },
+                  { key: 'type', label: 'Format' },
+                ].map((s) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => {
+                      hapticFeedback.light();
+                      if (sortBy === s.key) {
+                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortBy(s.key as 'id' | 'text' | 'category' | 'type');
+                        setSortOrder('asc');
+                      }
+                    }}
+                    className={`px-3 py-2 rounded-xl text-xs font-medium border transition text-left flex items-center justify-between ${
+                      sortBy === s.key
+                        ? 'bg-blue-600/20 border-blue-500 text-blue-300'
+                        : 'bg-surface border-edge text-content-muted hover:text-content'
+                    }`}
+                  >
+                    <span>{s.label}</span>
+                    {sortBy === s.key && (
+                      <span className="text-[10px] font-mono text-blue-400">
+                        {sortOrder.toUpperCase()}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Drawer Sticky Footer Actions */}
+          <div className="p-4 border-t border-edge bg-surface-card/95 flex items-center justify-between gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                hapticFeedback.light();
+                setSelectedCategory('all');
+                setSelectedType('all');
+                setSortBy('id');
+                setSortOrder('asc');
+                setPage(1);
+              }}
+              className="px-4 py-2.5 rounded-xl border border-edge-strong text-xs font-semibold text-content-muted hover:text-content transition min-h-[44px]"
+            >
+              Reset All
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                hapticFeedback.medium();
+                setIsMobileFilterOpen(false);
+              }}
+              className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white shadow-lg shadow-blue-600/30 transition text-center min-h-[44px] flex items-center justify-center"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </div>
+      </ModalShell>
 
       {/* MODALS */}
       <QuestionFormModal

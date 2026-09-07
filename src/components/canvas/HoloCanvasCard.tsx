@@ -51,6 +51,19 @@ export const HoloCanvasCard: React.FC<HoloCanvasCardProps> = ({
   const tilt = useRef({ rx: 0, ry: 0, targetRx: 0, targetRy: 0 });
   const sparklesRef = useRef<Sparkle[]>(createInitialSparkles(22));
 
+  // Detect dark mode via CSS variable (SSR-safe, no context dependency)
+  const isDarkRef = useRef(true);
+  useEffect(() => {
+    const check = () => {
+      isDarkRef.current = document.documentElement.classList.contains('dark');
+    };
+    check();
+    // Re-check when theme transitions (class change on <html>)
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   // Animation frame loop
   useEffect(() => {
     let animId: number;
@@ -60,6 +73,8 @@ export const HoloCanvasCard: React.FC<HoloCanvasCardProps> = ({
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      const isDark = isDarkRef.current;
 
       // Smooth lerp tilt & mouse
       const lerp = 0.12;
@@ -107,7 +122,7 @@ export const HoloCanvasCard: React.FC<HoloCanvasCardProps> = ({
         const y1 = cy + sinA * gradLen * 0.5;
 
         const holoGrad = ctx.createLinearGradient(x0, y0, x1, y1);
-        const alphaBase = 0.22 * intensity * activeAlpha;
+        const alphaBase = (isDark ? 0.22 : 0.12) * intensity * activeAlpha;
 
         holoGrad.addColorStop(0.0, `rgba(255, 0, 128, ${alphaBase * 0.8})`);
         holoGrad.addColorStop(0.18, `rgba(255, 140, 0, ${alphaBase * 0.9})`);
@@ -118,20 +133,22 @@ export const HoloCanvasCard: React.FC<HoloCanvasCardProps> = ({
         holoGrad.addColorStop(1.0, `rgba(255, 0, 128, ${alphaBase * 0.8})`);
 
         ctx.save();
-        ctx.globalCompositeOperation = 'color-dodge';
+        // Light mode: use 'soft-light' for subtler color blending on white surfaces
+        ctx.globalCompositeOperation = isDark ? 'color-dodge' : 'soft-light';
         ctx.fillStyle = holoGrad;
         ctx.fillRect(0, 0, w, h);
         ctx.restore();
 
         // 2. Specular Hotspot (Cursor Flare)
         const spotGrad = ctx.createRadialGradient(mx, my, 10, mx, my, Math.max(w, h) * 0.75);
-        spotGrad.addColorStop(0.0, `rgba(255, 255, 255, ${0.45 * intensity * activeAlpha})`);
+        const spotAlpha = isDark ? 0.45 : 0.2;
+        spotGrad.addColorStop(0.0, `rgba(255, 255, 255, ${spotAlpha * intensity * activeAlpha})`);
         spotGrad.addColorStop(0.2, `${categoryColor}44`);
         spotGrad.addColorStop(0.6, 'rgba(255, 255, 255, 0.04)');
         spotGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
 
         ctx.save();
-        ctx.globalCompositeOperation = 'screen';
+        ctx.globalCompositeOperation = isDark ? 'screen' : 'overlay';
         ctx.fillStyle = spotGrad;
         ctx.fillRect(0, 0, w, h);
         ctx.restore();
@@ -139,8 +156,9 @@ export const HoloCanvasCard: React.FC<HoloCanvasCardProps> = ({
         // 3. Diagonal Foil Glint Sheen
         const sheenX = mousePos.current.x * w * 1.6 - w * 0.3;
         const sheenGrad = ctx.createLinearGradient(sheenX - 60, 0, sheenX + 60, h);
+        const sheenAlpha = isDark ? 0.35 : 0.15;
         sheenGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-        sheenGrad.addColorStop(0.5, `rgba(255, 255, 255, ${0.35 * intensity * activeAlpha})`);
+        sheenGrad.addColorStop(0.5, `rgba(255, 255, 255, ${sheenAlpha * intensity * activeAlpha})`);
         sheenGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
         ctx.save();
@@ -151,10 +169,11 @@ export const HoloCanvasCard: React.FC<HoloCanvasCardProps> = ({
 
         // 4. Sparkling Foil Stardust Particles
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = isDark ? 'lighter' : 'overlay';
+        const sparkleColor = isDark ? '255, 255, 255' : '0, 0, 0';
         for (const sp of sparklesRef.current) {
           sp.phase += sp.speed;
-          const currentAlpha = Math.abs(Math.sin(sp.phase)) * 0.85 * activeAlpha * intensity;
+          const currentAlpha = Math.abs(Math.sin(sp.phase)) * (isDark ? 0.85 : 0.35) * activeAlpha * intensity;
           const sx = sp.x * w;
           const sy = sp.y * h;
 
@@ -163,13 +182,13 @@ export const HoloCanvasCard: React.FC<HoloCanvasCardProps> = ({
           const finalAlpha = Math.min(1, currentAlpha + proxBoost);
 
           if (finalAlpha > 0.05) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${finalAlpha})`;
+            ctx.fillStyle = `rgba(${sparkleColor}, ${finalAlpha})`;
             ctx.beginPath();
             ctx.arc(sx, sy, sp.size, 0, Math.PI * 2);
             ctx.fill();
 
             if (finalAlpha > 0.6) {
-              ctx.strokeStyle = `rgba(255, 255, 255, ${finalAlpha * 0.7})`;
+              ctx.strokeStyle = `rgba(${sparkleColor}, ${finalAlpha * 0.7})`;
               ctx.lineWidth = 0.75;
               ctx.beginPath();
               ctx.moveTo(sx - sp.size * 2, sy);

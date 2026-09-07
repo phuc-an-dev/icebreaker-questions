@@ -18,6 +18,8 @@ import {
   Bookmark,
   Copy,
 } from 'lucide-react';
+import { SPRING_PHYSICS } from '@/lib/motion';
+import { hapticFeedback } from '@/lib/haptics';
 
 interface PresentationModalProps {
   isOpen: boolean;
@@ -46,11 +48,7 @@ const cardVariants = {
     opacity: 1,
     scale: 1,
     rotateY: 0,
-    transition: {
-      type: 'spring' as const,
-      stiffness: 300,
-      damping: 26,
-    },
+    transition: SPRING_PHYSICS.modal,
   },
   exit: (direction: number) => ({
     x: direction < 0 ? 100 : -100,
@@ -108,39 +106,58 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  // Lock body scroll while stage presentation is active
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !question) return null;
 
   const cat = CATEGORIES[question.category] || CATEGORIES.group;
   const typeMeta = QUESTION_TYPES[question.type];
 
+  const handleClose = () => {
+    hapticFeedback.medium();
+    onClose();
+  };
+
   const handleCopy = () => {
+    hapticFeedback.light();
     navigator.clipboard.writeText(question.text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
 
   const handleRandomDraw = () => {
+    hapticFeedback.light();
     setDirection(1);
     onRandom();
   };
 
   const handleNextClick = () => {
+    hapticFeedback.light();
     setDirection(1);
     onNext();
   };
 
   const handlePrevClick = () => {
+    hapticFeedback.light();
     setDirection(-1);
     onPrev();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-between overflow-x-hidden overflow-y-auto bg-slate-950/95 backdrop-blur-2xl p-3 sm:p-5">
+    <div className="fixed inset-0 z-50 flex flex-col justify-between overflow-x-hidden overflow-y-auto bg-surface/95 backdrop-blur-2xl p-3 sm:p-5">
       {/* Ambient particle background */}
       <StageCanvasBg primaryColor={cat.color} particleCount={40} />
 
       {/* Top Bar - Mobile Responsive & Never Cut Off */}
-      <div className="relative z-30 mx-auto flex w-full max-w-3xl items-center justify-between gap-2 pb-3 border-b border-white/10">
+      <div className="relative z-30 mx-auto flex w-full max-w-3xl items-center justify-between gap-2 pb-3 border-b border-edge-strong">
         {/* Left: Category Icon & Name */}
         <div className="flex items-center gap-2 min-w-0">
           <div
@@ -155,14 +172,14 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs sm:text-sm font-bold text-white tracking-wide truncate max-w-[120px] sm:max-w-none">
+              <span className="text-xs sm:text-sm font-bold text-content tracking-wide truncate max-w-[120px] sm:max-w-none">
                 {cat.label}
               </span>
-              <span className="shrink-0 rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-slate-300">
+              <span className="shrink-0 rounded-md bg-black/10 dark:bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-content-secondary">
                 {currentIndex + 1}/{totalCount}
               </span>
             </div>
-            <p className="hidden sm:block text-[11px] text-slate-400">
+            <p className="hidden sm:block text-[11px] text-content-muted">
               Shortcuts: [←] [→] or [Space]
             </p>
           </div>
@@ -172,8 +189,8 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <TimerWidget initialSeconds={60} compact={true} className="py-1 px-2" />
           <button
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-slate-200 transition-colors hover:bg-white/20 hover:text-white active:scale-95"
+            onClick={handleClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-edge-strong bg-black/10 dark:bg-white/10 text-content transition-colors hover:bg-black/20 dark:hover:bg-white/20 active:scale-95"
             title="Close (Esc)"
             aria-label="Close presentation"
           >
@@ -197,13 +214,13 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
             <HoloCanvasCard
               categoryColor={cat.color}
               intensity={1.2}
-              className="w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-white/15 bg-slate-900/90 shadow-2xl backdrop-blur-2xl transition-all"
+              className="w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-edge-strong bg-surface-card/90 shadow-2xl backdrop-blur-2xl transition-all"
             >
               <div className="flex flex-col justify-between p-5 sm:p-8">
                 {/* Header row inside card */}
                 <div>
                   <div className="flex items-center justify-between gap-2 pb-3">
-                    <span className="font-mono text-xs font-semibold text-slate-400">
+                    <span className="font-mono text-xs font-semibold text-content-muted">
                       Question #{question.id.toString().padStart(3, '0')}
                     </span>
                     <span
@@ -220,31 +237,31 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
 
                   {/* Dedicated Question Type & Instruction Banner */}
                   {typeMeta && (
-                    <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                      <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-blue-300">
-                        <IconHelper name={typeMeta.iconName} className="h-4 w-4 shrink-0 text-blue-400" />
+                    <div className="mb-4 rounded-xl border border-edge bg-surface-elevated/50 p-3">
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-300">
+                        <IconHelper name={typeMeta.iconName} className="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" />
                         <span>{typeMeta.label}</span>
                       </div>
-                      <p className="mt-1 text-xs text-slate-300 leading-relaxed">
+                      <p className="mt-1 text-xs text-content-secondary leading-relaxed">
                         {typeMeta.hint}
                       </p>
                     </div>
                   )}
 
                   {/* Main Question Text */}
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold leading-relaxed tracking-tight text-white selection:bg-blue-500/30">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold leading-relaxed tracking-tight text-content selection:bg-blue-500/30">
                     {question.text}
                   </h2>
                 </div>
 
                 {/* Bottom row inside card */}
-                <div className="mt-6 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-2.5">
+                <div className="mt-6 pt-4 border-t border-edge flex flex-wrap items-center justify-between gap-2.5">
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1">
                     {question.tags.map((t) => (
                       <span
                         key={t}
-                        className="rounded-md bg-slate-800/80 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-slate-300 border border-slate-700/60"
+                        className="rounded-md bg-surface-elevated/80 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-content-secondary border border-edge-subtle"
                       >
                         {TAG_LABELS[t] || t}
                       </span>
@@ -255,21 +272,24 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
                   <div className="flex items-center gap-1.5">
                     {/* Asked Toggle */}
                     <button
-                      onClick={() => onToggleAsked(question.id)}
+                      onClick={() => {
+                        hapticFeedback.medium();
+                        onToggleAsked(question.id);
+                      }}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
                         isAsked
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50'
-                          : 'bg-white/10 text-slate-200 border border-white/15 hover:bg-white/20'
+                          ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/50'
+                          : 'bg-black/10 dark:bg-white/10 text-content border border-edge hover:bg-black/20 dark:hover:bg-white/20'
                       }`}
                     >
                       {isAsked ? (
                         <>
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
                           <span>Asked</span>
                         </>
                       ) : (
                         <>
-                          <Check className="h-3.5 w-3.5 text-slate-400" />
+                          <Check className="h-3.5 w-3.5 text-content-muted" />
                           <span className="hidden xs:inline">Mark as asked</span>
                         </>
                       )}
@@ -277,11 +297,14 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
 
                     {/* Favorite */}
                     <button
-                      onClick={() => onToggleFavorite(question.id)}
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 transition-colors ${
+                      onClick={() => {
+                        hapticFeedback.medium();
+                        onToggleFavorite(question.id);
+                      }}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg border border-edge transition-colors ${
                         isFavorite
-                          ? 'bg-amber-400/20 text-amber-400 border-amber-400/40'
-                          : 'bg-white/5 text-slate-400 hover:text-white'
+                          ? 'bg-amber-400/20 text-amber-500 dark:text-amber-400 border-amber-400/40'
+                          : 'bg-black/5 dark:bg-white/5 text-content-muted hover:text-content'
                       }`}
                       aria-label="Toggle favorite"
                     >
@@ -291,10 +314,10 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
                     {/* Copy */}
                     <button
                       onClick={handleCopy}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-colors hover:text-white"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-edge bg-black/5 dark:bg-white/5 text-content-muted transition-colors hover:text-content"
                       aria-label="Copy question"
                     >
-                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                   </div>
                 </div>
@@ -308,7 +331,7 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
       <div className="relative z-30 flex items-center justify-center gap-3 pt-3 pb-2">
         <button
           onClick={handlePrevClick}
-          className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-900/90 text-white backdrop-blur-md transition-all active:scale-95 shadow-md hover:bg-slate-800"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-edge-strong bg-surface-card/90 text-content backdrop-blur-md transition-all active:scale-95 shadow-md hover:bg-surface-elevated"
           title="Previous question"
           aria-label="Previous question"
         >
@@ -326,7 +349,7 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
 
         <button
           onClick={handleNextClick}
-          className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-900/90 text-white backdrop-blur-md transition-all active:scale-95 shadow-md hover:bg-slate-800"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-edge-strong bg-surface-card/90 text-content backdrop-blur-md transition-all active:scale-95 shadow-md hover:bg-surface-elevated"
           title="Next question"
           aria-label="Next question"
         >

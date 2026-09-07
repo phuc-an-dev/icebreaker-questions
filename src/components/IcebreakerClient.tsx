@@ -9,6 +9,8 @@ import { FilterBar } from '@/components/filters/FilterBar';
 import { PresentationModal } from '@/components/stage/PresentationModal';
 import { StatsBar } from '@/components/ui/StatsBar';
 import { StageCanvasBg } from '@/components/canvas/StageCanvasBg';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { hapticFeedback } from '@/lib/haptics';
 import Link from 'next/link';
 import {
   Sparkles,
@@ -71,6 +73,7 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
 
   // Handle open stage
   const handleOpenStage = (targetQuestion?: Question) => {
+    hapticFeedback.medium();
     if (targetQuestion) {
       setCurrentStageQuestion(targetQuestion);
     } else if (filteredQuestions.length > 0) {
@@ -102,6 +105,7 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
 
   // Handle random draw on Grid View
   const handleRandomDraw = () => {
+    hapticFeedback.medium();
     const pick = getRandomQuestion();
     if (!pick) return;
 
@@ -121,27 +125,37 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
     : 0;
 
   const scrollToTop = () => {
+    hapticFeedback.light();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleClearAllCategories = () => {
+    hapticFeedback.light();
     filters.categories.forEach((c) => toggleCategory(c));
   };
 
   return (
-    <main className="relative min-h-screen bg-[#070b12] text-slate-100 pb-28 sm:pb-32">
+    <main className="relative min-h-screen bg-surface text-content pb-28 sm:pb-32">
       {/* Ambient Hero Canvas particles */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[450px] overflow-hidden opacity-40">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[450px] overflow-hidden"
+        style={{ opacity: 'var(--canvas-particle-opacity)' }}
+      >
         <StageCanvasBg primaryColor="#3b82f6" particleCount={30} />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#070b12]/80 to-[#070b12]" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(to bottom, transparent, var(--bg-main-faded), var(--bg-main))`,
+          }}
+        />
       </div>
 
       {/* Main Container */}
-      <div className="relative z-10 mx-auto max-w-7xl px-3.5 py-5 sm:px-6 lg:px-8">
-        {/* Header */}
-        <header className="mb-5 sm:mb-8 flex flex-col items-center text-center">
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[11px] sm:text-xs font-semibold text-blue-300 backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+      <div className="relative z-10 mx-auto max-w-7xl px-3.5 py-4 sm:px-6 lg:px-8">
+        {/* Top App Bar — balanced flex row */}
+        <div className="mb-4 sm:mb-6 flex items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[11px] sm:text-xs font-semibold text-blue-600 dark:text-blue-300 backdrop-blur-md shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
             <span>
               {isLoading
                 ? 'Loading...'
@@ -149,9 +163,16 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
             </span>
           </div>
 
-          <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+          </div>
+        </div>
+
+        {/* Hero Title Section */}
+        <header className="mb-6 sm:mb-8 flex flex-col items-center text-center">
+          <h1 className="text-2xl font-extrabold tracking-tight text-content sm:text-4xl lg:text-5xl">
             Icebreaker{' '}
-            <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-blue-500 via-sky-400 to-indigo-500 dark:from-blue-400 dark:via-sky-300 dark:to-indigo-400 bg-clip-text text-transparent">
               Question Bank
             </span>
           </h1>
@@ -170,13 +191,13 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
         {/* Category Chips section (Swipeable on Mobile) */}
         <section className="mb-5 sm:mb-6">
           <div className="mb-1.5 flex items-center justify-between px-0.5">
-            <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-content-muted">
               Categories {filters.categories.length > 0 && `(${filters.categories.length})`}
             </span>
             {filters.categories.length > 0 && (
               <button
                 onClick={handleClearAllCategories}
-                className="text-[11px] text-blue-400 hover:underline"
+                className="text-[11px] text-blue-500 dark:text-blue-400 hover:underline"
               >
                 Clear filter
               </button>
@@ -194,50 +215,50 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
         <section className="mb-14">
           {/* Searching debounce loading banner */}
           {isSearching && (
-            <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 py-2 px-4 text-xs font-semibold text-blue-300 backdrop-blur-md animate-pulse">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+            <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 py-2 px-4 text-xs font-semibold text-blue-500 dark:text-blue-300 backdrop-blur-md animate-pulse">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500 dark:text-blue-400" />
               <span>Filtering questions...</span>
             </div>
           )}
 
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 px-4 py-20 text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-              <p className="mt-3 text-sm text-slate-400">Loading questions from MongoDB Atlas...</p>
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-edge bg-surface-card/40 px-4 py-20 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500 dark:text-blue-400" />
+              <p className="mt-3 text-sm text-content-muted">Loading questions from MongoDB Atlas...</p>
             </div>
           ) : error && allQuestions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-rose-900/40 bg-rose-950/20 px-4 py-16 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-rose-800/60 bg-rose-900/30 text-rose-400">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-rose-400/40 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/20 px-4 py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-rose-300 dark:border-rose-800/60 bg-rose-100 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400">
                 <HelpCircle className="h-6 w-6" />
               </div>
-              <h3 className="mt-3 text-base font-semibold text-rose-200">
+              <h3 className="mt-3 text-base font-semibold text-rose-700 dark:text-rose-200">
                 Failed to load questions from database
               </h3>
-              <p className="mt-1 text-xs text-rose-300/80 max-w-md">
+              <p className="mt-1 text-xs text-rose-600/80 dark:text-rose-300/80 max-w-md">
                 {error}. Please check your connection or MongoDB configuration.
               </p>
               <button
                 onClick={refetch}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-rose-500/20 px-4 py-2 text-xs font-semibold text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition-colors"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-rose-500/20 px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition-colors"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 <span>Retry</span>
               </button>
             </div>
           ) : filteredQuestions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 px-4 py-16 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-500">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-edge bg-surface-card/40 px-4 py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-edge bg-surface-elevated text-content-muted">
                 <HelpCircle className="h-6 w-6" />
               </div>
-              <h3 className="mt-3 text-base font-semibold text-slate-200">
+              <h3 className="mt-3 text-base font-semibold text-content">
                 No matching questions found
               </h3>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-content-muted">
                 Try clearing filters or searching with different keywords.
               </p>
               <button
                 onClick={resetFilters}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-blue-500/20 px-3.5 py-1.5 text-xs font-semibold text-blue-300 border border-blue-500/40 hover:bg-blue-500/30"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-blue-500/20 px-3.5 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-300 border border-blue-500/40 hover:bg-blue-500/30"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 <span>Reset all filters</span>
@@ -280,18 +301,18 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-slate-800/80 pt-6 pb-6 text-center text-xs text-slate-500">
+        <footer className="border-t border-edge pt-6 pb-6 text-center text-xs text-content-muted">
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <Compass className="h-3.5 w-3.5 text-blue-400" />
+            <Compass className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
             <span>Icebreaker Question Bank — {allQuestions.length} Questions</span>
           </div>
-          <p className="mt-1 text-slate-600">
+          <p className="mt-1 text-content-muted/60">
             Powered by MongoDB Atlas • Mobile-First Ergonomic UX • 60fps Interactive Canvas Hologram
           </p>
           <div className="mt-3">
             <Link
               href="/admin"
-              className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-blue-400 transition"
+              className="inline-flex items-center gap-1.5 text-[11px] text-content-muted hover:text-blue-500 dark:hover:text-blue-400 transition"
             >
               <ShieldCheck className="h-3.5 w-3.5" />
               <span>Admin Management Portal</span>
@@ -301,11 +322,11 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
       </div>
 
       {/* Floating Bottom Filter & Action Bar (Optimal Thumb Reach for Mobile & Desktop) */}
-      <aside className="fixed bottom-3 inset-x-3 z-40 mx-auto max-w-xl rounded-2xl border border-slate-800 bg-slate-950/90 p-2.5 sm:p-3 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10">
+      <aside className="fixed bottom-3 inset-x-3 z-40 mx-auto max-w-xl rounded-2xl border border-edge bg-[var(--bg-glass-heavy)] p-2.5 sm:p-3 shadow-2xl backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/10">
         {/* Docked Back-to-top button: ALWAYS floating directly above the bottom bar */}
         <button
           onClick={scrollToTop}
-          className={`absolute -top-12 right-2 z-50 flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-slate-900/95 text-slate-200 shadow-2xl backdrop-blur-2xl transition-all duration-300 hover:bg-slate-800 hover:text-white active:scale-95 ${
+          className={`absolute -top-12 right-2 z-50 flex h-10 w-10 items-center justify-center rounded-xl border border-edge-strong bg-[var(--bg-glass-heavy)] text-content shadow-2xl backdrop-blur-2xl transition-all duration-300 hover:bg-surface-elevated hover:text-content active:scale-95 ${
             showScrollTop
               ? 'opacity-100 translate-y-0 pointer-events-auto'
               : 'opacity-0 translate-y-3 pointer-events-none'
