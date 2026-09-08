@@ -1,7 +1,11 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getServerCurrentAdmin } from '@/lib/auth';
-import { getCategoriesWithDefaults, getQuestionTypesWithDefaults } from '@/lib/db-questions';
+import {
+  getCategoriesWithDefaults,
+  getQuestionTypesWithDefaults,
+  getTotalQuestionsCount,
+} from '@/lib/db-questions';
 import { getAllAdmins } from '@/lib/db-admins';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { Metadata } from 'next';
@@ -19,10 +23,11 @@ export default async function AdminPage() {
     redirect('/admin/login');
   }
 
-  const [categories, types, admins] = await Promise.all([
+  const [categories, types, admins, totalQuestions] = await Promise.all([
     getCategoriesWithDefaults(),
     getQuestionTypesWithDefaults(),
     getAllAdmins(),
+    getTotalQuestionsCount(),
   ]);
 
   return (
@@ -32,6 +37,7 @@ export default async function AdminPage() {
         initialCategories={categories}
         initialTypes={types}
         initialAdmins={admins}
+        initialTotalQuestions={totalQuestions}
       />
     </Suspense>
   );

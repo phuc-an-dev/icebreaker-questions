@@ -29,6 +29,12 @@ export async function getAllQuestions(): Promise<Question[]> {
   }));
 }
 
+export async function getTotalQuestionsCount(): Promise<number> {
+  const client = await clientPromise;
+  const db = client.db(DB_NAME);
+  return db.collection('questions').countDocuments({});
+}
+
 export interface GetQuestionsOptions {
   page?: number;
   limit?: number;
@@ -36,6 +42,7 @@ export interface GetQuestionsOptions {
   category?: string;
   type?: string;
   author?: string;
+  filter?: string;
   sortBy?: 'id' | 'text' | 'category' | 'type' | 'updatedAt' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
 }
@@ -58,6 +65,7 @@ export async function getAdminQuestions(
     category,
     type,
     author,
+    filter,
     sortBy = 'updatedAt',
     sortOrder = 'desc',
   } = options;
@@ -79,6 +87,16 @@ export async function getAdminQuestions(
 
   if (type && type !== 'all') {
     query.type = type;
+  }
+
+  if (filter === 'untagged') {
+    query.$or = [
+      { tags: { $exists: false } },
+      { tags: null },
+      { tags: { $size: 0 } },
+    ];
+  } else if (filter === 'long') {
+    query.$expr = { $gt: [{ $strLenCP: { $ifNull: ['$text', ''] } }, 160] };
   }
 
   if (author && author !== 'all') {

@@ -19,7 +19,7 @@ import { SPRING_PHYSICS } from '@/lib/motion';
 interface AdminProfileDropdownProps {
   currentAdmin: AdminUserPublic;
   onChangePassword: () => void;
-  onNavigateTab: (tab: 'questions' | 'categories' | 'types' | 'admins' | 'audit_logs') => void;
+  onNavigateTab: (tab: 'questions' | 'categories' | 'types' | 'analytics' | 'admins' | 'audit_logs') => void;
   onLogout: () => void;
   isLogoutPending?: boolean;
 }

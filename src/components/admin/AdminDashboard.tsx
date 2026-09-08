@@ -32,6 +32,8 @@ import {
   Users,
   UserCheck,
   History,
+  BarChart3,
+  Tag,
 } from 'lucide-react';
 import { CategoryMeta, Question, TypeMeta } from '@/types/question';
 import { AdminUserPublic } from '@/types/admin';
@@ -42,6 +44,7 @@ import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { ImportExportModal } from './ImportExportModal';
 import { AdminUsersTab } from './AdminUsersTab';
 import { AuditLogsTab } from './AuditLogsTab';
+import { AnalyticsTab } from './AnalyticsTab';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { AdminProfileDropdown } from './AdminProfileDropdown';
 import { ToastContainer } from '@/components/ui/ToastContainer';
@@ -56,6 +59,7 @@ interface AdminDashboardProps {
   initialCategories: CategoryMeta[];
   initialTypes: TypeMeta[];
   initialAdmins?: AdminUserPublic[];
+  initialTotalQuestions?: number;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -63,17 +67,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   initialCategories,
   initialTypes,
   initialAdmins = [],
+  initialTotalQuestions = 0,
 }) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { toasts, toast, dismiss } = useToast();
 
-  type AdminTabType = 'questions' | 'categories' | 'types' | 'admins' | 'audit_logs';
+  type AdminTabType = 'questions' | 'categories' | 'types' | 'analytics' | 'admins' | 'audit_logs';
 
   // Active Main Tab (push mode for back button navigation)
   const [activeTab, setActiveTab] = useQueryState(
     'tab',
-    parseAsStringEnum<AdminTabType>(['questions', 'categories', 'types', 'admins', 'audit_logs'])
+    parseAsStringEnum<AdminTabType>(['questions', 'categories', 'types', 'analytics', 'admins', 'audit_logs'])
       .withDefault('questions')
       .withOptions({
         history: 'push',
@@ -87,9 +92,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [types, setTypes] = useState<TypeMeta[]>(initialTypes);
   const [admins] = useState<AdminUserPublic[]>(initialAdmins);
 
-  // Questions State
+  // Questions State [BUG FIX 1: Differentiate overall database questions from current query filtered count]
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [totalQuestions, setTotalQuestions] = useState(0);
+  const [totalDbQuestions, setTotalDbQuestions] = useState(initialTotalQuestions);
+  const [filteredCount, setFilteredCount] = useState(initialTotalQuestions);
   // Page (push mode)
   const [page, setPage] = useQueryState(
     'page',
@@ -130,6 +136,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [selectedAuthor, setSelectedAuthor] = useQueryState(
     'author',
     parseAsString.withDefault(currentAdminSlug).withOptions({
+      history: 'replace',
+      clearOnDefault: true,
+    })
+  );
+  // [INTERACTION 9 & 10]: Filter mode state ('untagged' | 'long')
+  const [filterMode, setFilterMode] = useQueryState(
+    'filter',
+    parseAsString.withDefault('').withOptions({
       history: 'replace',
       clearOnDefault: true,
     })
@@ -231,6 +245,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (selectedCategory !== 'all') params.set('category', selectedCategory);
     if (selectedType !== 'all') params.set('type', selectedType);
     if (selectedAuthor !== 'all') params.set('author', selectedAuthor);
+    if (filterMode) params.set('filter', filterMode);
 
     fetch(`/api/admin/questions?${params.toString()}`)
       .then((res) => {
@@ -240,7 +255,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       .then((data) => {
         if (!ignore) {
           setQuestions(data.questions || []);
-          setTotalQuestions(data.total || 0);
+          setFilteredCount(data.total || 0);
+          // If no search/filter is restricting total, update overall DB count
+          if (
+            !debouncedSearch &&
+            selectedCategory === 'all' &&
+            selectedType === 'all' &&
+            selectedAuthor === 'all' &&
+            !filterMode &&
+            data.total > 0
+          ) {
+            setTotalDbQuestions(data.total);
+          }
           setTotalPages(data.totalPages || 1);
           setIsLoadingQuestions(false);
         }
@@ -256,7 +282,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return () => {
       ignore = true;
     };
-  }, [page, limit, debouncedSearch, selectedCategory, selectedType, selectedAuthor, sortBy, sortOrder, refreshKey, toast]);
+  }, [page, limit, debouncedSearch, selectedCategory, selectedType, selectedAuthor, filterMode, sortBy, sortOrder, refreshKey, toast]);
 
   // Fetch Categories & Types refresh
   const refreshCategories = useCallback(async () => {
@@ -520,8 +546,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 Portal v2.0
               </span>
             </div>
-            <p className="text-xs text-content-muted hidden sm:block">
-              Connected to MongoDB Atlas &bull; {totalQuestions} Questions Live
+            {/* [BUG FIX 1 & MOBILE-FIRST 7]: Consistent Total count and compact on mobile */}
+            <p className="text-xs text-content-muted hidden md:block">
+              Connected to MongoDB Atlas &bull; {totalDbQuestions} Total Questions
             </p>
           </div>
         </div>
@@ -543,27 +570,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* Main Body with Mobile Safe Area Padding */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3.5 sm:p-6 md:p-8 space-y-5 pb-28 sm:pb-12">
-        {/* Navigation Tabs (Swipeable Pills on Mobile) */}
-        <div className="flex items-center gap-2 border-b border-edge pb-3 overflow-x-auto no-scrollbar -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+        {/* Navigation Tabs (Swipeable Pills on Mobile with Snap) [MOBILE-FIRST 8] */}
+        <div className="flex items-center gap-1.5 sm:gap-2 border-b border-edge pb-3 overflow-x-auto no-scrollbar -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scroll-smooth snap-x snap-mandatory">
           <button
             onClick={() => {
               setActiveTab('questions');
               hapticFeedback.light();
             }}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
+            className={`snap-start flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 min-h-[38px] transition ${
               activeTab === 'questions'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                 : 'text-content-muted hover:text-content hover:bg-surface-card'
             }`}
           >
-            <Sparkles className="w-4 h-4" />
-            <span>Questions</span>
+            <Sparkles className="w-4 h-4 shrink-0" />
+            <span className="whitespace-nowrap">Questions</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full ${
                 activeTab === 'questions' ? 'bg-blue-700 text-white' : 'bg-surface-elevated text-content-muted'
               }`}
             >
-              {totalQuestions}
+              {totalDbQuestions}
             </span>
           </button>
 
@@ -572,14 +599,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               setActiveTab('categories');
               hapticFeedback.light();
             }}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
+            className={`snap-start flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 min-h-[38px] transition ${
               activeTab === 'categories'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                 : 'text-content-muted hover:text-content hover:bg-surface-card'
             }`}
           >
-            <Layers className="w-4 h-4" />
-            <span>Categories</span>
+            <Layers className="w-4 h-4 shrink-0" />
+            <span className="whitespace-nowrap">Categories</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full ${
                 activeTab === 'categories' ? 'bg-blue-700 text-white' : 'bg-surface-elevated text-content-muted'
@@ -594,14 +621,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               setActiveTab('types');
               hapticFeedback.light();
             }}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
+            className={`snap-start flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 min-h-[38px] transition ${
               activeTab === 'types'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                 : 'text-content-muted hover:text-content hover:bg-surface-card'
             }`}
           >
-            <MessageSquareQuote className="w-4 h-4" />
-            <span>Question Types</span>
+            <MessageSquareQuote className="w-4 h-4 shrink-0" />
+            <span className="whitespace-nowrap">Question Types</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full ${
                 activeTab === 'types' ? 'bg-blue-700 text-white' : 'bg-surface-elevated text-content-muted'
@@ -609,6 +636,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               {types.length}
             </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('analytics');
+              hapticFeedback.light();
+            }}
+            className={`snap-start flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 min-h-[38px] transition ${
+              activeTab === 'analytics'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'text-content-muted hover:text-content hover:bg-surface-card'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 shrink-0" />
+            <span className="whitespace-nowrap">Analytics</span>
           </button>
 
           {/* Master Admin Only Tabs */}
@@ -619,14 +661,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   setActiveTab('admins');
                   hapticFeedback.light();
                 }}
-                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
+                className={`snap-start flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 min-h-[38px] transition ${
                   activeTab === 'admins'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                     : 'text-content-muted hover:text-content hover:bg-surface-card'
                 }`}
               >
-                <Users className="w-4 h-4" />
-                <span>Admins</span>
+                <Users className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">Admins</span>
               </button>
 
               <button
@@ -634,14 +676,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   setActiveTab('audit_logs');
                   hapticFeedback.light();
                 }}
-                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition ${
+                className={`snap-start flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shrink-0 min-h-[38px] transition ${
                   activeTab === 'audit_logs'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                     : 'text-content-muted hover:text-content hover:bg-surface-card'
                 }`}
               >
-                <History className="w-4 h-4" />
-                <span>Audit Logs</span>
+                <History className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">Audit Logs</span>
               </button>
             </>
           )}
@@ -842,6 +884,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* [INTERACTION 9 & 10]: Active Filter Banner (Untagged / Long Questions) */}
+            {filterMode && (
+              <div className="flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl animate-fadeIn">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Tag className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-xs sm:text-sm font-semibold text-amber-300 truncate">
+                    Active Filter: {filterMode === 'untagged' ? 'Untagged Questions' : filterMode === 'long' ? 'Questions Exceeding 160 Chars' : filterMode} ({filteredCount} found)
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setFilterMode('');
+                    setPage(1);
+                  }}
+                  className="flex items-center gap-1 text-xs text-amber-300 hover:text-white px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/40 transition shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Clear Filter</span>
+                </button>
+              </div>
+            )}
 
             {/* Desktop Bulk Action Bar */}
             {selectedIds.length > 0 && (
@@ -1369,7 +1433,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               page={page}
               totalPages={totalPages}
               onPageChange={(newPage) => setPage(newPage)}
-              totalItems={totalQuestions}
+              totalItems={filteredCount}
               pageSize={limit}
               pageSizeOptions={[10, 20, 50]}
               onPageSizeChange={(newSize) => {
@@ -1559,7 +1623,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
 
-        {/* TAB 4: ADMINS (MASTER ADMIN ONLY) */}
+        {/* TAB 4: ANALYTICS */}
+        {activeTab === 'analytics' && (
+          <AnalyticsTab
+            onNavigateToFilter={({ category, type, filter, tab = 'questions' }) => {
+              if (category !== undefined) setSelectedCategory(category);
+              if (type !== undefined) setSelectedType(type);
+              if (filter !== undefined) setFilterMode(filter);
+              setActiveTab(tab);
+              setPage(1);
+              hapticFeedback.medium();
+            }}
+            onTotalUpdated={(count) => {
+              if (count > 0) {
+                setTotalDbQuestions(count);
+              }
+            }}
+          />
+        )}
+
+        {/* TAB 5: ADMINS (MASTER ADMIN ONLY) */}
         {activeTab === 'admins' && currentAdmin.role === 'master_admin' && (
           <AdminUsersTab
             currentAdmin={currentAdmin}

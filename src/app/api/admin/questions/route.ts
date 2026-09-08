@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get('category') || undefined;
   const type = searchParams.get('type') || undefined;
   const author = searchParams.get('author') || undefined;
+  const filter = searchParams.get('filter') || undefined;
   const sortBy = (searchParams.get('sortBy') as 'id' | 'text' | 'category' | 'type' | 'updatedAt') || 'updatedAt';
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc';
 
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
       category,
       type,
       author,
+      filter,
       sortBy,
       sortOrder,
     });
