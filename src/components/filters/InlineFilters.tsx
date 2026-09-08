@@ -91,15 +91,22 @@ export const InlineFilters: React.FC<InlineFiltersProps> = ({
     // 3. Any category that exists on questions in current dataset
     for (const q of questions) {
       if (q.category && !map.has(q.category)) {
+        const found = categories?.find(
+          (c) => c.id.toLowerCase() === q.category.toLowerCase()
+        );
+        const resolvedLabel =
+          found?.label ||
+          q.category.replace(/[-_]+/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
+
         map.set(q.category, {
           id: q.category,
-          label: q.category,
-          description: '',
-          color: '#3b82f6',
-          gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-          glowColor: 'rgba(59, 130, 246, 0.4)',
-          borderGlow: 'rgba(59, 130, 246, 0.6)',
-          iconName: 'Users',
+          label: resolvedLabel,
+          description: found?.description || '',
+          color: found?.color || '#3b82f6',
+          gradient: found?.gradient || 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+          glowColor: found?.glowColor || 'rgba(59, 130, 246, 0.4)',
+          borderGlow: found?.borderGlow || 'rgba(59, 130, 246, 0.6)',
+          iconName: found?.iconName || 'Users',
         });
       }
     }
@@ -129,11 +136,18 @@ export const InlineFilters: React.FC<InlineFiltersProps> = ({
     }
     for (const q of questions) {
       if (q.type && !typeMetaMap.has(q.type)) {
+        const found = types?.find(
+          (t) => t.id.toLowerCase() === q.type.toLowerCase()
+        );
+        const resolvedLabel =
+          found?.label ||
+          q.type.replace(/[-_]+/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
+
         typeMetaMap.set(q.type, {
           id: q.type,
-          label: q.type,
-          hint: '',
-          iconName: 'HelpCircle',
+          label: resolvedLabel,
+          hint: found?.hint || '',
+          iconName: found?.iconName || 'HelpCircle',
         });
       }
     }

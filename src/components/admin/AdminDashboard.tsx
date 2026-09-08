@@ -438,29 +438,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const getCategoryMeta = (catId: string): CategoryMeta => {
-    return (
-      categories.find((c) => c.id === catId) || {
-        id: catId,
-        label: catId,
-        description: '',
-        color: '#3b82f6',
-        gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-        glowColor: 'rgba(59, 130, 246, 0.4)',
-        borderGlow: 'rgba(59, 130, 246, 0.6)',
-        iconName: 'HelpCircle',
-      }
-    );
+    const found = categories.find((c) => c.id.toLowerCase() === catId.toLowerCase());
+    if (found) return found;
+    return {
+      id: catId,
+      label: catId.replace(/[-_]+/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase()),
+      description: '',
+      color: '#3b82f6',
+      gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+      glowColor: 'rgba(59, 130, 246, 0.4)',
+      borderGlow: 'rgba(59, 130, 246, 0.6)',
+      iconName: 'HelpCircle',
+    };
   };
 
   const getTypeMeta = (typeId: string): TypeMeta => {
-    return (
-      types.find((t) => t.id === typeId) || {
-        id: typeId,
-        label: typeId,
-        hint: '',
-        iconName: 'MessageSquareQuote',
-      }
-    );
+    const found = types.find((t) => t.id.toLowerCase() === typeId.toLowerCase());
+    if (found) return found;
+    return {
+      id: typeId,
+      label: typeId.replace(/[-_]+/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase()),
+      hint: '',
+      iconName: 'MessageSquareQuote',
+    };
   };
 
   const isPageAllSelected =
@@ -1447,7 +1447,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               type: 'category',
                               id: cat.id,
                               title: `Delete Category "${cat.label}"?`,
-                              message: `Are you sure you want to delete category "${cat.id}"? Questions assigned to this category will keep their tag but the category metadata will be removed.`,
+                              message: `Are you sure you want to delete category "${cat.label}"? Questions assigned to this category will keep their tag but the category metadata will be removed.`,
                             });
                             setIsDeleteModalOpen(true);
                           }}
@@ -1460,7 +1460,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
 
                     <h3 className="text-base font-bold text-content mb-1">{cat.label}</h3>
-                    <p className="text-xs font-mono text-content-muted mb-2">id: {cat.id}</p>
+                    <p className="text-[11px] font-mono text-content-muted/70 mb-2">Key: {cat.id}</p>
                     <p className="text-xs text-content-muted leading-relaxed">
                       {cat.description || 'No description provided.'}
                     </p>
@@ -1535,7 +1535,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               type: 'type',
                               id: t.id,
                               title: `Delete Format "${t.label}"?`,
-                              message: `Are you sure you want to delete question format "${t.id}"?`,
+                              message: `Are you sure you want to delete question format "${t.label}"?`,
                             });
                             setIsDeleteModalOpen(true);
                           }}
@@ -1548,7 +1548,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
 
                     <h3 className="text-base font-bold text-content mb-1">{t.label}</h3>
-                    <p className="text-xs font-mono text-content-muted mb-2">id: {t.id}</p>
+                    <p className="text-[11px] font-mono text-content-muted/70 mb-2">Key: {t.id}</p>
                     <p className="text-xs text-content-muted leading-relaxed">
                       {t.hint || 'No interaction hint provided.'}
                     </p>

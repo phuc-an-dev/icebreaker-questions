@@ -6,6 +6,7 @@ import { CategoryMeta, TypeMeta } from '@/types/question';
 import { IconHelper } from '@/components/ui/IconHelper';
 import { ModalShell } from '@/components/ui/ModalShell';
 import { hapticFeedback } from '@/lib/haptics';
+import { stripAccents } from '@/lib/utils';
 
 interface CategoryTypeModalProps {
   isOpen: boolean;
@@ -131,7 +132,7 @@ const CategoryTypeInner: React.FC<CategoryTypeInnerProps> = ({
   const handleIdFromLabel = (newLabel: string) => {
     setLabel(newLabel);
     if (!isEditing) {
-      const generated = newLabel
+      const generated = stripAccents(newLabel)
         .toLowerCase()
         .trim()
         .replace(/[^a-z0-9]+/g, '-')
@@ -281,9 +282,14 @@ const CategoryTypeInner: React.FC<CategoryTypeInnerProps> = ({
 
         {/* ID Key */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-content-muted mb-1.5">
-            Unique ID Key *
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-content-muted">
+              Unique ID Key *
+            </label>
+            <span className="text-[11px] text-content-muted">
+              Internal key (Display Name above will be shown to users)
+            </span>
+          </div>
           <input
             type="text"
             value={id}

@@ -29,14 +29,35 @@ export function useQuestionsState(
 
   const hasInitialQuestions = initialQuestions && initialQuestions.length > 0;
   const [fetchedQuestions, setFetchedQuestions] = useState<Question[]>([]);
-  const [categories, setCategories] = useState<CategoryMeta[]>(() => {
-    if (initialCategories && initialCategories.length > 0) return initialCategories;
-    return Object.values(CATEGORIES);
-  });
-  const [types, setTypes] = useState<TypeMeta[]>(() => {
-    if (initialTypes && initialTypes.length > 0) return initialTypes;
-    return Object.values(QUESTION_TYPES);
-  });
+  const [fetchedCategories, setFetchedCategories] = useState<CategoryMeta[]>([]);
+  const [fetchedTypes, setFetchedTypes] = useState<TypeMeta[]>([]);
+
+  // Derived categories: SSR initialCategories > fetchedCategories > default CATEGORIES
+  const categories: CategoryMeta[] = useMemo(() => {
+    const map = new Map<string, CategoryMeta>();
+    for (const c of Object.values(CATEGORIES)) {
+      map.set(c.id, c);
+    }
+    const sourceList = initialCategories.length > 0 ? initialCategories : fetchedCategories;
+    for (const c of sourceList) {
+      map.set(c.id, c);
+    }
+    return Array.from(map.values());
+  }, [initialCategories, fetchedCategories]);
+
+  // Derived types: SSR initialTypes > fetchedTypes > default QUESTION_TYPES
+  const types: TypeMeta[] = useMemo(() => {
+    const map = new Map<string, TypeMeta>();
+    for (const t of Object.values(QUESTION_TYPES)) {
+      map.set(t.id, t);
+    }
+    const sourceList = initialTypes.length > 0 ? initialTypes : fetchedTypes;
+    for (const t of sourceList) {
+      map.set(t.id, t);
+    }
+    return Array.from(map.values());
+  }, [initialTypes, fetchedTypes]);
+
   const [isFetching, setIsFetching] = useState<boolean>(!hasInitialQuestions);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,10 +81,10 @@ export function useQuestionsState(
         if (data.success && Array.isArray(data.data)) {
           setFetchedQuestions(data.data);
           if (Array.isArray(data.categories) && data.categories.length > 0) {
-            setCategories(data.categories);
+            setFetchedCategories(data.categories);
           }
           if (Array.isArray(data.types) && data.types.length > 0) {
-            setTypes(data.types);
+            setFetchedTypes(data.types);
           }
           setError(null);
         } else {
@@ -78,9 +99,9 @@ export function useQuestionsState(
       });
   }, []);
 
-  // Only fetch client-side if initialQuestions was not provided
+  // Fetch client-side if questions or categories are missing
   useEffect(() => {
-    if (hasInitialQuestions) {
+    if (hasInitialQuestions && initialCategories.length > 0) {
       return;
     }
 
@@ -93,6 +114,12 @@ export function useQuestionsState(
       .then((data) => {
         if (isMounted && data.success && Array.isArray(data.data)) {
           setFetchedQuestions(data.data);
+          if (Array.isArray(data.categories) && data.categories.length > 0) {
+            setFetchedCategories(data.categories);
+          }
+          if (Array.isArray(data.types) && data.types.length > 0) {
+            setFetchedTypes(data.types);
+          }
           setError(null);
         } else if (isMounted) {
           throw new Error(data.error || 'Invalid response data');
@@ -112,7 +139,7 @@ export function useQuestionsState(
     return () => {
       isMounted = false;
     };
-  }, [hasInitialQuestions]);
+  }, [hasInitialQuestions, initialCategories.length]);
 
   // Debounce search input (400ms)
   useEffect(() => {

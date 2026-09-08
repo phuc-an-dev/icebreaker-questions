@@ -124,7 +124,7 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
 
   const cat = categoryMeta || CATEGORIES[question.category] || {
     id: question.category,
-    label: question.category,
+    label: question.category.replace(/[-_]+/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase()),
     color: '#3b82f6',
     iconName: 'Users',
     description: '',
@@ -132,7 +132,12 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
     glowColor: 'rgba(59, 130, 246, 0.4)',
     borderGlow: 'rgba(59, 130, 246, 0.6)',
   };
-  const activeTypeMeta = typeMeta || QUESTION_TYPES[question.type];
+  const activeTypeMeta = typeMeta || QUESTION_TYPES[question.type] || {
+    id: question.type,
+    label: question.type.replace(/[-_]+/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase()),
+    hint: '',
+    iconName: 'MessageSquareQuote',
+  };
 
   const handleClose = () => {
     hapticFeedback.medium();
