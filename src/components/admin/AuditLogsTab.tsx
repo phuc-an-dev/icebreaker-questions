@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuditLogEntry, AuditAction } from '@/types/admin';
 import { SearchableDropdown, DropdownOption } from './SearchableDropdown';
+import { Pagination } from '@/components/ui/Pagination';
 import {
   Search,
   RefreshCw,
@@ -12,8 +13,6 @@ import {
   Layers,
   Calendar,
   User,
-  ChevronLeft,
-  ChevronRight,
   Hash,
 } from 'lucide-react';
 import { hapticFeedback } from '@/lib/haptics';
@@ -348,38 +347,17 @@ export const AuditLogsTab: React.FC<AuditLogsTabProps> = ({ onToast }) => {
         </>
       )}
 
-      {/* Pagination Footer */}
+      {/* Standardized Mobile-First Pagination */}
       {totalPages > 1 && (
-        <div className="p-3.5 sm:p-4 bg-surface-card border border-edge rounded-2xl flex items-center justify-between gap-4 text-xs shadow-sm">
-          <div className="text-content-muted">
-            Page {page} of {totalPages} ({total} entries)
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={page <= 1}
-              onClick={() => {
-                hapticFeedback.light();
-                setPage((p) => Math.max(1, p - 1));
-              }}
-              className="p-2 bg-surface-input border border-edge rounded-xl text-content-muted hover:text-content hover:bg-surface-hover disabled:opacity-40 transition min-w-[36px] min-h-[36px] flex items-center justify-center"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="px-3 py-1 bg-surface-input border border-edge rounded-xl font-medium font-mono min-h-[36px] flex items-center justify-center">
-              {page}
-            </span>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => {
-                hapticFeedback.light();
-                setPage((p) => Math.min(totalPages, p + 1));
-              }}
-              className="p-2 bg-surface-input border border-edge rounded-xl text-content-muted hover:text-content hover:bg-surface-hover disabled:opacity-40 transition min-w-[36px] min-h-[36px] flex items-center justify-center"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={(newPage) => setPage(newPage)}
+          totalItems={total}
+          pageSize={limit}
+          itemName="records"
+          showRowsPerPage={false}
+        />
       )}
     </div>
   );

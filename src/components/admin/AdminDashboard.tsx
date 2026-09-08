@@ -14,8 +14,6 @@ import {
   Layers,
   MessageSquareQuote,
   Database,
-  ArrowLeft,
-  ArrowRight,
   DownloadCloud,
   CheckSquare,
   Square,
@@ -43,6 +41,7 @@ import { ToastContainer } from '@/components/ui/ToastContainer';
 import { useToast } from '@/hooks/useToast';
 import { SearchableDropdown, DropdownOption } from './SearchableDropdown';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { Pagination } from '@/components/ui/Pagination';
 
 function formatDateTime(dateStr?: string): string {
   if (!dateStr) return '';
@@ -1332,57 +1331,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               )}
             </div>
 
-            {/* Pagination Bar (Responsive for Desktop & Mobile) */}
-            <div className="p-3.5 sm:p-4 bg-surface/80 border border-edge rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-content-muted w-full sm:w-auto">
-                <span>
-                  Showing {Math.min(totalQuestions, (page - 1) * limit + 1)} -{' '}
-                  {Math.min(totalQuestions, page * limit)} of {totalQuestions} questions
-                </span>
-
-                <div className="flex items-center gap-1">
-                  <span>Rows:</span>
-                  {[10, 20, 50].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => { setLimit(n); setPage(1); }}
-                      className={`px-2 py-1 rounded-lg text-xs font-medium border transition ${
-                        limit === n
-                          ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                          : 'bg-surface-card border-edge-strong text-content-muted hover:text-content'
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-2 w-full sm:w-auto">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="p-2 sm:p-1.5 rounded-xl border border-edge-strong bg-surface-card text-content-secondary hover:text-content disabled:opacity-40 disabled:cursor-not-allowed transition min-w-[40px] min-h-[40px] flex items-center justify-center"
-                  aria-label="Previous page"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </button>
-
-                <span className="text-xs font-semibold px-2 text-content-secondary">
-                  Page {page} of {totalPages}
-                </span>
-
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="p-2 sm:p-1.5 rounded-xl border border-edge-strong bg-surface-card text-content-secondary hover:text-content disabled:opacity-40 disabled:cursor-not-allowed transition min-w-[40px] min-h-[40px] flex items-center justify-center"
-                  aria-label="Next page"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            {/* Standardized Mobile-First Pagination */}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={(newPage) => setPage(newPage)}
+              totalItems={totalQuestions}
+              pageSize={limit}
+              pageSizeOptions={[10, 20, 50]}
+              onPageSizeChange={(newSize) => {
+                setLimit(newSize);
+                setPage(1);
+              }}
+              itemName="questions"
+            />
           </div>
         )}
 
