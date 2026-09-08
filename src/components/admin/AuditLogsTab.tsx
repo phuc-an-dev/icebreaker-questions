@@ -16,6 +16,7 @@ import {
   Hash,
 } from 'lucide-react';
 import { hapticFeedback } from '@/lib/haptics';
+import { formatDateTime } from '@/lib/utils';
 
 interface AuditLogsTabProps {
   onToast: (type: 'success' | 'error' | 'info', message: string) => void;
@@ -276,7 +277,7 @@ export const AuditLogsTab: React.FC<AuditLogsTabProps> = ({ onToast }) => {
                 <div className="mt-2 pt-2.5 border-t border-edge/80 flex items-center justify-between text-[11px] text-content-muted">
                   <div className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5" />
-                    <span>{new Date(log.timestamp).toLocaleString()}</span>
+                    <span>{formatDateTime(log.timestamp)}</span>
                   </div>
                 </div>
               </div>
@@ -302,7 +303,7 @@ export const AuditLogsTab: React.FC<AuditLogsTabProps> = ({ onToast }) => {
                       <td className="py-4 px-4 whitespace-nowrap text-content-muted">
                         <div className="flex items-center gap-1.5 text-[11px]">
                           <Calendar className="w-3.5 h-3.5 text-content-muted flex-shrink-0" />
-                          <span>{new Date(log.timestamp).toLocaleString()}</span>
+                          <span>{formatDateTime(log.timestamp)}</span>
                         </div>
                       </td>
 

@@ -6,7 +6,7 @@ import { CategoryMeta, TypeMeta } from '@/types/question';
 import { IconHelper } from '@/components/ui/IconHelper';
 import { ModalShell } from '@/components/ui/ModalShell';
 import { hapticFeedback } from '@/lib/haptics';
-import { stripAccents } from '@/lib/utils';
+import { slugify } from '@/lib/utils';
 
 interface CategoryTypeModalProps {
   isOpen: boolean;
@@ -132,12 +132,7 @@ const CategoryTypeInner: React.FC<CategoryTypeInnerProps> = ({
   const handleIdFromLabel = (newLabel: string) => {
     setLabel(newLabel);
     if (!isEditing) {
-      const generated = stripAccents(newLabel)
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      setId(generated);
+      setId(slugify(newLabel));
     }
   };
 

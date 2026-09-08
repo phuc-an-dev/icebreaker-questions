@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { getAllQuestions, getCategoriesWithDefaults, getQuestionTypesWithDefaults } from '@/lib/db-questions';
 import { IcebreakerClient } from '@/components/IcebreakerClient';
 import { Question, CategoryMeta, TypeMeta } from '@/types/question';
@@ -23,10 +24,12 @@ export default async function IcebreakerPage() {
   }
 
   return (
-    <IcebreakerClient
-      initialQuestions={initialQuestions}
-      initialCategories={initialCategories}
-      initialTypes={initialTypes}
-    />
+    <Suspense fallback={null}>
+      <IcebreakerClient
+        initialQuestions={initialQuestions}
+        initialCategories={initialCategories}
+        initialTypes={initialTypes}
+      />
+    </Suspense>
   );
 }

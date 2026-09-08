@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  useQueryState,
+  parseAsString,
+  parseAsInteger,
+  parseAsStringEnum,
+  debounce,
+} from 'nuqs';
 import { hapticFeedback } from '@/lib/haptics';
 import { ModalShell } from '@/components/ui/ModalShell';
 import {
@@ -42,24 +49,7 @@ import { useToast } from '@/hooks/useToast';
 import { SearchableDropdown, DropdownOption } from './SearchableDropdown';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Pagination } from '@/components/ui/Pagination';
-
-function formatDateTime(dateStr?: string): string {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  } catch {
-    return '';
-  }
-}
+import { slugify, formatDateTime } from '@/lib/utils';
 
 interface AdminDashboardProps {
   currentAdmin: AdminUserPublic;
@@ -78,8 +68,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isPending, startTransition] = useTransition();
   const { toasts, toast, dismiss } = useToast();
 
-  // Active Main Tab
-  const [activeTab, setActiveTab] = useState<'questions' | 'categories' | 'types' | 'admins' | 'audit_logs'>('questions');
+  type AdminTabType = 'questions' | 'categories' | 'types' | 'admins' | 'audit_logs';
+
+  // Active Main Tab (push mode for back button navigation)
+  const [activeTab, setActiveTab] = useQueryState(
+    'tab',
+    parseAsStringEnum<AdminTabType>(['questions', 'categories', 'types', 'admins', 'audit_logs'])
+      .withDefault('questions')
+      .withOptions({
+        history: 'push',
+        clearOnDefault: true,
+      })
+  );
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(Boolean(currentAdmin.mustChangePassword));
 
   // Categories & Types state
@@ -90,17 +90,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Questions State
   const [questions, setQuestions] = useState<Question[]>([]);
   const [totalQuestions, setTotalQuestions] = useState(0);
-  const [page, setPage] = useState(1);
+  // Page (push mode)
+  const [page, setPage] = useQueryState(
+    'page',
+    parseAsInteger.withDefault(1).withOptions({
+      history: 'push',
+      clearOnDefault: true,
+    })
+  );
   const [limit, setLimit] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
-  // Filter & Sorting State (Default author is current logged in admin)
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedType, setSelectedType] = useState('all');
-  const [selectedAuthor, setSelectedAuthor] = useState<string>(currentAdmin.id);
+  // Filter & Sorting State (replace mode)
+  const [search, setSearch] = useQueryState(
+    'q',
+    parseAsString.withDefault('').withOptions({
+      history: 'replace',
+      limitUrlUpdates: debounce(300),
+      clearOnDefault: true,
+    })
+  );
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [selectedCategory, setSelectedCategory] = useQueryState(
+    'category',
+    parseAsString.withDefault('all').withOptions({
+      history: 'replace',
+      clearOnDefault: true,
+    })
+  );
+  const [selectedType, setSelectedType] = useQueryState(
+    'type',
+    parseAsString.withDefault('all').withOptions({
+      history: 'replace',
+      clearOnDefault: true,
+    })
+  );
+  const currentAdminSlug = slugify(currentAdmin.name);
+  const [selectedAuthor, setSelectedAuthor] = useQueryState(
+    'author',
+    parseAsString.withDefault(currentAdminSlug).withOptions({
+      history: 'replace',
+      clearOnDefault: true,
+    })
+  );
   const [sortBy, setSortBy] = useState<'id' | 'text' | 'category' | 'type' | 'updatedAt'>('updatedAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -108,7 +141,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const authorOptions: DropdownOption[] = useMemo(() => {
     const list: DropdownOption[] = [
       {
-        id: currentAdmin.id,
+        id: currentAdminSlug,
         label: 'My Questions',
         sublabel: `Signed in as ${currentAdmin.name}`,
         iconName: 'UserCheck',
@@ -130,7 +163,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const otherAdmins = admins.filter((a) => a.id !== currentAdmin.id);
     for (const admin of otherAdmins) {
       list.push({
-        id: admin.id,
+        id: slugify(admin.name),
         label: admin.name,
         sublabel: admin.role === 'master_admin' ? 'Master Admin' : admin.email,
         iconName: 'User',
@@ -138,7 +171,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
 
     return list;
-  }, [currentAdmin, admins]);
+  }, [currentAdmin, admins, currentAdminSlug]);
 
   // Mobile drawer & interaction states
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -168,14 +201,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
 
-  // Debounce search input (400ms)
+  // Debounce search input (300ms)
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(search);
       setPage(1);
-    }, 400);
+    }, 300);
     return () => clearTimeout(handler);
-  }, [search]);
+  }, [search, setPage]);
 
   // Refresh trigger counter
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1747,7 +1780,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 hapticFeedback.light();
                 setSelectedCategory('all');
                 setSelectedType('all');
-                setSelectedAuthor(currentAdmin.id);
+                setSelectedAuthor(currentAdminSlug);
                 setSortBy('updatedAt');
                 setSortOrder('desc');
                 setPage(1);

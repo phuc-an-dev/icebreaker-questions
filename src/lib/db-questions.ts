@@ -2,7 +2,8 @@ import clientPromise from '@/lib/mongodb';
 import { CategoryMeta, Question, TypeMeta } from '@/types/question';
 import { CATEGORIES, QUESTION_TYPES } from '@/data/metadata';
 import { recordAuditLog } from '@/lib/db-audit';
-import { escapeRegex } from '@/lib/utils';
+import { escapeRegex, slugify } from '@/lib/utils';
+import { getAllAdmins } from '@/lib/db-admins';
 
 const DB_NAME = process.env.MONGODB_DB || 'icebreaker_db';
 
@@ -88,7 +89,13 @@ export async function getAdminQuestions(
         { 'createdBy.adminId': { $exists: false } },
       ];
     } else {
-      query['createdBy.adminId'] = author;
+      const admins = await getAllAdmins();
+      const matched = admins.find((a) => a.id === author || slugify(a.name) === author);
+      if (matched) {
+        query['createdBy.adminId'] = matched.id;
+      } else {
+        query['createdBy.adminId'] = author;
+      }
     }
   }
 

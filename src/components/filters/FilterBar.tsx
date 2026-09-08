@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useQueryState, parseAsStringEnum } from 'nuqs';
 import { FilterState, Question, QuestionTypeId } from '@/types/question';
 import { QUESTION_TYPES, TAG_LABELS } from '@/data/metadata';
 import { IconHelper } from '@/components/ui/IconHelper';
@@ -28,7 +29,7 @@ interface FilterBarProps {
   onToggleType: (typeId: QuestionTypeId) => void;
   onToggleTag: (tag: string) => void;
   onSelectAuthor?: (authorId: string) => void;
-  authorFrequencies?: Array<{ id: string; name: string; count: number }>;
+  authorFrequencies?: Array<{ id: string; slug?: string; name: string; count: number }>;
   onToggleHideAsked: (val: boolean) => void;
   onToggleOnlyFavorites: (val: boolean) => void;
   onResetFilters: () => void;
@@ -61,7 +62,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   isSearching = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'types' | 'tags' | 'authors'>('types');
+  const [activeTab, setActiveTab] = useQueryState(
+    'tab',
+    parseAsStringEnum<'types' | 'tags' | 'authors'>(['types', 'tags', 'authors'])
+      .withDefault('types')
+      .withOptions({
+        history: 'push',
+        clearOnDefault: true,
+      })
+  );
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -222,7 +231,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <User className="h-3 w-3" />
               <span>
                 {filters.author && filters.author !== 'all'
-                  ? authorFrequencies.find((a) => a.id === filters.author)?.name || 'Author'
+                  ? authorFrequencies.find((a) => (a.slug || a.id) === filters.author || a.id === filters.author)?.name || 'Author'
                   : 'Author'}
               </span>
               {filters.author && filters.author !== 'all' && (
@@ -411,12 +420,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               )}
             </button>
             {authorFrequencies.map((a) => {
-              const isSelected = filters.author === a.id;
+              const authorKey = a.slug || a.id;
+              const isSelected = filters.author === authorKey || filters.author === a.id;
               return (
                 <button
                   key={a.id}
                   onClick={() => {
-                    onSelectAuthor?.(a.id);
+                    onSelectAuthor?.(authorKey);
                     hapticFeedback.light();
                   }}
                   className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${

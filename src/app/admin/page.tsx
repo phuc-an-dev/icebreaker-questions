@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getServerCurrentAdmin } from '@/lib/auth';
 import { getCategoriesWithDefaults, getQuestionTypesWithDefaults } from '@/lib/db-questions';
@@ -25,11 +26,13 @@ export default async function AdminPage() {
   ]);
 
   return (
-    <AdminDashboard
-      currentAdmin={currentAdmin}
-      initialCategories={categories}
-      initialTypes={types}
-      initialAdmins={admins}
-    />
+    <Suspense fallback={null}>
+      <AdminDashboard
+        currentAdmin={currentAdmin}
+        initialCategories={categories}
+        initialTypes={types}
+        initialAdmins={admins}
+      />
+    </Suspense>
   );
 }

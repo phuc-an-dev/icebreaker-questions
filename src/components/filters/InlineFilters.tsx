@@ -25,7 +25,7 @@ interface InlineFiltersProps {
   // Author
   selectedAuthor?: string;
   onSelectAuthor: (authorId?: string) => void;
-  authorFrequencies: Array<{ id: string; name: string; count: number }>;
+  authorFrequencies: Array<{ id: string; slug?: string; name: string; count: number }>;
 
   // Type
   selectedTypes: QuestionTypeId[];
@@ -353,12 +353,13 @@ export const InlineFilters: React.FC<InlineFiltersProps> = ({
 
             {/* Individual Authors */}
             {authorFrequencies.map((a) => {
-              const isSelected = selectedAuthor === a.id;
+              const authorKey = a.slug || a.id;
+              const isSelected = selectedAuthor === authorKey || selectedAuthor === a.id;
               return (
                 <button
                   key={a.id}
                   onClick={() => {
-                    onSelectAuthor(a.id);
+                    onSelectAuthor(authorKey);
                     hapticFeedback.light();
                   }}
                   className={`group shrink-0 inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-medium transition-all ${

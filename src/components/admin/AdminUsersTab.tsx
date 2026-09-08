@@ -20,6 +20,7 @@ import {
   Edit2,
 } from 'lucide-react';
 import { hapticFeedback } from '@/lib/haptics';
+import { formatDateTime } from '@/lib/utils';
 
 interface AdminUsersTabProps {
   currentAdmin: AdminUserPublic;
@@ -510,8 +511,8 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
 
                   {/* Card Footer (Metadata) */}
                   <div className="mt-4 pt-3 border-t border-edge/80 flex items-center justify-between text-xs text-content-muted">
-                    <span>Joined: {admin.createdAt ? new Date(admin.createdAt).toLocaleDateString() : 'N/A'}</span>
-                    <span>Last: {admin.lastLoginAt ? new Date(admin.lastLoginAt).toLocaleDateString() : 'Never'}</span>
+                    <span>Joined: {formatDateTime(admin.createdAt, 'N/A')}</span>
+                    <span>Last: {formatDateTime(admin.lastLoginAt, 'Never')}</span>
                   </div>
                 </div>
               );
@@ -592,12 +593,12 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                           )}
                         </td>
 
-                        <td className="py-4 px-4 text-content-muted text-[11px]">
-                          {admin.createdAt ? new Date(admin.createdAt).toLocaleDateString() : 'N/A'}
+                        <td className="py-4 px-4 text-content-muted text-[11px] font-mono">
+                          {formatDateTime(admin.createdAt, 'N/A')}
                         </td>
 
-                        <td className="py-4 px-4 text-content-muted text-[11px]">
-                          {admin.lastLoginAt ? new Date(admin.lastLoginAt).toLocaleString() : 'Never'}
+                        <td className="py-4 px-4 text-content-muted text-[11px] font-mono">
+                          {formatDateTime(admin.lastLoginAt, 'Never')}
                         </td>
 
                         <td className="py-4 px-4 text-right">

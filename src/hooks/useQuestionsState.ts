@@ -1,9 +1,15 @@
 'use client';
 
 import { useState, useMemo, useCallback, useSyncExternalStore, useEffect } from 'react';
+import {
+  useQueryState,
+  parseAsString,
+  parseAsArrayOf,
+  debounce,
+} from 'nuqs';
 import { Question, CategoryId, QuestionTypeId, FilterState, CategoryMeta, TypeMeta } from '@/types/question';
 import { CATEGORIES, QUESTION_TYPES } from '@/data/metadata';
-import { stripAccents } from '@/lib/utils';
+import { stripAccents, slugify } from '@/lib/utils';
 
 const STORAGE_KEY_ASKED = 'icebreaker_asked_v2';
 const STORAGE_KEY_FAVORITES = 'icebreaker_favorites_v2';
@@ -19,6 +25,39 @@ function getInitialSet(key: string): Set<number> {
     return new Set();
   }
 }
+
+// nuqs Parsers for URL search params
+const qParser = parseAsString.withDefault('').withOptions({
+  history: 'replace',
+  limitUrlUpdates: debounce(300),
+  clearOnDefault: true,
+});
+
+const categoryParser = parseAsArrayOf(parseAsString, ',')
+  .withDefault([])
+  .withOptions({
+    history: 'replace',
+    clearOnDefault: true,
+  });
+
+const typeParser = parseAsArrayOf(parseAsString, ',')
+  .withDefault([])
+  .withOptions({
+    history: 'replace',
+    clearOnDefault: true,
+  });
+
+const tagParser = parseAsArrayOf(parseAsString, ',')
+  .withDefault([])
+  .withOptions({
+    history: 'replace',
+    clearOnDefault: true,
+  });
+
+const authorParser = parseAsString.withDefault('all').withOptions({
+  history: 'replace',
+  clearOnDefault: true,
+});
 
 export function useQuestionsState(
   initialQuestions: Question[] = [],
@@ -61,10 +100,23 @@ export function useQuestionsState(
   const [isFetching, setIsFetching] = useState<boolean>(!hasInitialQuestions);
   const [error, setError] = useState<string | null>(null);
 
-  // Debounced search state
-  const [searchInput, setSearchInput] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  // URL Query State - Single Source of Truth for filters
+  const [search, setSearchState] = useQueryState('q', qParser);
+  const [urlCategory, setUrlCategory] = useQueryState('category', categoryParser);
+  const [urlType, setUrlType] = useQueryState('type', typeParser);
+  const [urlTag, setUrlTag] = useQueryState('tag', tagParser);
+  const [urlAuthor, setUrlAuthor] = useQueryState('author', authorParser);
+
+  // Debounced search for questions filtering (300ms)
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const isSearching = search !== debouncedSearch;
 
   const allQuestions = hasInitialQuestions ? initialQuestions : fetchedQuestions;
   const isLoading = !hasInitialQuestions && isFetching;
@@ -141,32 +193,22 @@ export function useQuestionsState(
     };
   }, [hasInitialQuestions, initialCategories.length]);
 
-  // Debounce search input (400ms)
-  useEffect(() => {
-    if (!searchInput) return;
-
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchInput);
-      setIsSearching(false);
-    }, 400);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [searchInput]);
-
   const [askedIds, setAskedIds] = useState<Set<number>>(() => getInitialSet(STORAGE_KEY_ASKED));
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(() => getInitialSet(STORAGE_KEY_FAVORITES));
 
-  const [filters, setFilters] = useState<FilterState>({
-    categories: [],
-    types: [],
-    tags: [],
-    author: 'all',
-    search: '',
-    hideAsked: false,
-    onlyFavorites: false,
-  });
+  const [hideAsked, setHideAsked] = useState(false);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+
+  // Derived FilterState: URL search params is the Single Source of Truth
+  const filters: FilterState = useMemo(() => ({
+    categories: urlCategory as CategoryId[],
+    types: urlType as QuestionTypeId[],
+    tags: urlTag,
+    author: urlAuthor,
+    search: search,
+    hideAsked,
+    onlyFavorites,
+  }), [urlCategory, urlType, urlTag, urlAuthor, search, hideAsked, onlyFavorites]);
 
   // Save to localStorage when state updates
   const updateAskedIds = useCallback((newSet: Set<number>) => {
@@ -218,105 +260,80 @@ export function useQuestionsState(
   }, [updateAskedIds]);
 
   const toggleCategory = useCallback((cat: CategoryId) => {
-    setFilters((prev) => {
-      const exists = prev.categories.includes(cat);
-      return {
-        ...prev,
-        categories: exists
-          ? prev.categories.filter((c) => c !== cat)
-          : [...prev.categories, cat],
-      };
+    setUrlCategory((prev) => {
+      const exists = prev.includes(cat);
+      const next = exists ? prev.filter((c) => c !== cat) : [...prev, cat];
+      return next.length === 0 ? null : next;
     });
-  }, []);
+  }, [setUrlCategory]);
 
   const toggleType = useCallback((typeId: QuestionTypeId) => {
-    setFilters((prev) => {
-      const exists = prev.types.includes(typeId);
-      return {
-        ...prev,
-        types: exists
-          ? prev.types.filter((t) => t !== typeId)
-          : [...prev.types, typeId],
-      };
+    setUrlType((prev) => {
+      const exists = prev.includes(typeId);
+      const next = exists ? prev.filter((t) => t !== typeId) : [...prev, typeId];
+      return next.length === 0 ? null : next;
     });
-  }, []);
+  }, [setUrlType]);
 
   const toggleTag = useCallback((tag: string) => {
-    setFilters((prev) => {
-      const exists = prev.tags.includes(tag);
-      return {
-        ...prev,
-        tags: exists
-          ? prev.tags.filter((t) => t !== tag)
-          : [...prev.tags, tag],
-      };
+    setUrlTag((prev) => {
+      const exists = prev.includes(tag);
+      const next = exists ? prev.filter((t) => t !== tag) : [...prev, tag];
+      return next.length === 0 ? null : next;
     });
-  }, []);
+  }, [setUrlTag]);
 
-  const setSearch = useCallback((search: string) => {
-    setSearchInput(search);
-    setFilters((prev) => ({ ...prev, search }));
-    if (!search) {
-      setDebouncedSearch('');
-      setIsSearching(false);
-    } else {
-      setIsSearching(true);
-    }
-  }, []);
-
-  const setHideAsked = useCallback((hideAsked: boolean) => {
-    setFilters((prev) => ({ ...prev, hideAsked }));
-  }, []);
-
-  const setOnlyFavorites = useCallback((onlyFavorites: boolean) => {
-    setFilters((prev) => ({ ...prev, onlyFavorites }));
-  }, []);
+  const setSearch = useCallback((val: string) => {
+    const clean = val.trim() ? val : null;
+    setSearchState(clean);
+  }, [setSearchState]);
 
   const setAuthor = useCallback((author?: string) => {
-    setFilters((prev) => ({ ...prev, author: prev.author === author ? 'all' : author }));
-  }, []);
+    setUrlAuthor((prev) => {
+      if (!author || author === 'all' || prev === author) {
+        return null;
+      }
+      return author;
+    });
+  }, [setUrlAuthor]);
 
   const clearCategories = useCallback(() => {
-    setFilters((prev) => ({ ...prev, categories: [] }));
-  }, []);
+    setUrlCategory(null);
+  }, [setUrlCategory]);
 
   const clearTypes = useCallback(() => {
-    setFilters((prev) => ({ ...prev, types: [] }));
-  }, []);
+    setUrlType(null);
+  }, [setUrlType]);
 
   const clearTags = useCallback(() => {
-    setFilters((prev) => ({ ...prev, tags: [] }));
-  }, []);
+    setUrlTag(null);
+  }, [setUrlTag]);
 
   const resetFilters = useCallback(() => {
-    setSearchInput('');
-    setDebouncedSearch('');
-    setIsSearching(false);
-    setFilters({
-      categories: [],
-      types: [],
-      tags: [],
-      author: 'all',
-      search: '',
-      hideAsked: false,
-      onlyFavorites: false,
-    });
-  }, []);
+    setSearchState(null);
+    setUrlCategory(null);
+    setUrlType(null);
+    setUrlTag(null);
+    setUrlAuthor(null);
+    setHideAsked(false);
+    setOnlyFavorites(false);
+  }, [setSearchState, setUrlCategory, setUrlType, setUrlTag, setUrlAuthor]);
 
   // Compute question count by author
   const authorFrequencies = useMemo(() => {
-    const counts: Record<string, { id: string; name: string; count: number }> = {};
+    const counts: Record<string, { id: string; slug: string; name: string; count: number }> = {};
     for (const q of allQuestions) {
       const authorId = q.createdBy?.adminId || 'system';
       const authorName = q.createdBy?.name || 'System';
-      if (!counts[authorId]) {
-        counts[authorId] = { id: authorId, name: authorName, count: 0 };
+      const authorSlug = authorId === 'system' ? 'system' : slugify(authorName);
+      if (!counts[authorSlug]) {
+        counts[authorSlug] = { id: authorId, slug: authorSlug, name: authorName, count: 0 };
       }
-      counts[authorId].count++;
+      counts[authorSlug].count++;
     }
     return Object.values(counts).sort((a, b) => {
-      if (a.id === 'system') return -1;
-      if (b.id === 'system') return 1;
+      if (a.slug === 'system') return -1;
+      if (b.slug === 'system') return 1;
       return b.count - a.count;
     });
   }, [allQuestions]);
@@ -346,10 +363,12 @@ export function useQuestionsState(
       if (filters.onlyFavorites && !favoriteIds.has(q.id)) {
         return false;
       }
-      // Author filter
+      // Author filter: supports clean slug (e.g. 'kieu-linh') and id fallback
       if (filters.author && filters.author !== 'all') {
-        const qAuthor = q.createdBy?.adminId || 'system';
-        if (qAuthor !== filters.author) {
+        const qAuthorId = q.createdBy?.adminId || 'system';
+        const qAuthorName = q.createdBy?.name || 'System';
+        const qAuthorSlug = qAuthorId === 'system' ? 'system' : slugify(qAuthorName);
+        if (filters.author !== qAuthorSlug && filters.author !== qAuthorId) {
           return false;
         }
       }

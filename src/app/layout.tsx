@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import './globals.css';
 
@@ -100,7 +101,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: FOUC_PREVENTION_SCRIPT }}
         />
         <ThemeProvider>
-          {children}
+          <NuqsAdapter>
+            {children}
+          </NuqsAdapter>
         </ThemeProvider>
         <Analytics />
       </body>
