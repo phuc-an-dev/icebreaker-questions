@@ -25,14 +25,12 @@ import { IconHelper } from '@/components/ui/IconHelper';
 import { AdminStatsOverview } from '@/types/stats';
 
 interface AnalyticsTabProps {
-  // Navigation callback to switch to Questions tab with specific filters pre-applied
   onNavigateToFilter?: (options: {
     tab?: 'questions';
     category?: string;
     type?: string;
     filter?: string;
   }) => void;
-  // Callback to synchronize total count with parent header & tab badge
   onTotalUpdated?: (total: number) => void;
 }
 
@@ -55,7 +53,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // [UI/UX IMPROVEMENT 4]: Mobile-friendly expandable formats (default Top 5, toggle full list)
+  // Mobile-friendly expandable formats (default Top 5, toggle full list)
   const [isFormatExpanded, setIsFormatExpanded] = useState(false);
 
   const handleManualRefresh = useCallback(() => {
@@ -86,7 +84,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           setIsRefreshing(false);
           hapticFeedback.success();
 
-          // [BUG FIX 1]: Synchronize total questions count with parent header & tabs
+          // Synchronize total count with parent header and tabs
           if (data.kpis?.totalQuestions !== undefined && onTotalUpdated) {
             onTotalUpdated(data.kpis.totalQuestions);
           }
@@ -131,7 +129,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
   if (error && !stats) {
     return (
       <div className="p-6 sm:p-8 rounded-2xl bg-surface-card border border-red-500/30 text-center space-y-3">
-        <AlertTriangle className="w-10 h-10 text-red-400 mx-auto" />
+        <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto" />
         <h3 className="text-base font-semibold text-content">Failed to load statistics</h3>
         <p className="text-xs text-content-muted">{error}</p>
         <button
@@ -148,16 +146,14 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
   if (!stats) return null;
 
   const { kpis, categoryDistribution, typeDistribution, dataHealth, contributors } = stats;
-
-  // [UI/UX IMPROVEMENT 4]: Limit visible formats on mobile, expandable via button
   const visibleFormats = isFormatExpanded ? typeDistribution : typeDistribution.slice(0, 5);
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Top Header & Refresh Control (Mobile-first responsive toolbar) */}
+      {/* Top Header & Refresh Control (Primary Blue Accent) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-card/70 backdrop-blur-md p-3.5 sm:p-5 rounded-2xl border border-edge">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0">
             <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div className="min-w-0">
@@ -180,23 +176,22 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-surface-elevated hover:bg-surface-card text-content border border-edge transition active:scale-95 disabled:opacity-50 min-h-[38px] sm:min-h-[36px]"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition active:scale-95 disabled:opacity-50 min-h-[38px] sm:min-h-[36px] shadow-sm shadow-blue-600/20"
             title="Refresh statistics"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
       </div>
 
-      {/* [MOBILE-FIRST LAYOUT 2]: 5 KPI Cards 
-          - Mobile (< 375px): 1 column
-          - Mobile (>= 375px): 2 columns
-          - Desktop: 3 to 5 columns
-          - Actionable "Untagged Alert" prioritized to the top on mobile (order-first)
+      {/* 5 KPI Cards:
+          - Warning (Amber): Only for Untagged Alert
+          - Success (Emerald): Only when untagged is 0 or all categories populated
+          - Primary (Blue): Active Themes, Interaction Styles, Human Contributions, Total Questions
       */}
       <div className="grid grid-cols-1 min-[375px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 sm:gap-4">
-        {/* [INTERACTION 9 & VISUAL POLISH 13]: Tappable Untagged Alert Card with Segmented Progress Bar */}
+        {/* WARNING SEMANTIC CARD: Untagged Alert */}
         <div
           role="button"
           tabIndex={0}
@@ -227,8 +222,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               <div
                 className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                   kpis.untaggedCount > 0
-                    ? 'bg-amber-500/20 text-amber-400 group-hover:scale-110 transition-transform'
-                    : 'bg-emerald-500/10 text-emerald-400'
+                    ? 'bg-amber-500/20 text-amber-500 group-hover:scale-110 transition-transform'
+                    : 'bg-emerald-500/10 text-emerald-500'
                 }`}
               >
                 <Tag className="w-3.5 h-3.5" />
@@ -239,7 +234,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 <AnimatedNumber value={kpis.untaggedCount} />
               </span>
               {kpis.untaggedCount > 0 && (
-                <span className="text-xs font-bold text-amber-400">
+                <span className="text-xs font-bold text-amber-500">
                   ({kpis.untaggedPercentage}%)
                 </span>
               )}
@@ -247,7 +242,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
 
           <div className="mt-2.5">
-            {/* [VISUAL POLISH 13]: Dual-segmented progress bar matching Content Provenance style */}
+            {/* Progress bar: Amber (Untagged) vs Neutral (Tagged) */}
             <div className="h-1.5 w-full bg-surface-elevated rounded-full overflow-hidden flex border border-edge/60">
               <div
                 className="h-full bg-amber-500 transition-all duration-700"
@@ -255,17 +250,17 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 title={`Untagged: ${kpis.untaggedCount} (${kpis.untaggedPercentage}%)`}
               />
               <div
-                className="h-full bg-emerald-500 transition-all duration-700"
+                className="h-full bg-slate-300 dark:bg-slate-700 transition-all duration-700"
                 style={{ width: `${100 - kpis.untaggedPercentage}%` }}
                 title={`Tagged: ${kpis.totalQuestions - kpis.untaggedCount}`}
               />
             </div>
             <div className="flex items-center justify-between text-[10px] sm:text-[11px] mt-1.5">
-              <span className={kpis.untaggedCount > 0 ? 'text-amber-400 font-medium' : 'text-emerald-400 font-medium'}>
+              <span className={kpis.untaggedCount > 0 ? 'text-amber-500 font-medium' : 'text-emerald-500 font-medium'}>
                 {kpis.untaggedCount > 0 ? 'Needs tag labeling' : '100% tagged'}
               </span>
               {kpis.untaggedCount > 0 && (
-                <span className="text-amber-400 font-semibold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+                <span className="text-amber-500 font-semibold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
                   <span>Filter</span>
                   <ArrowRight className="w-2.5 h-2.5" />
                 </span>
@@ -274,14 +269,14 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
         </div>
 
-        {/* Total Questions Card */}
+        {/* PRIMARY SEMANTIC CARD: Total Questions */}
         <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-blue-500/40 transition min-h-[110px] sm:min-h-[120px]">
           <div>
             <div className="flex items-center justify-between text-content-muted mb-1.5">
               <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold truncate">
                 Total Questions
               </span>
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
             </div>
@@ -290,19 +285,19 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
           <p className="text-[10px] sm:text-[11px] text-content-muted mt-2 flex items-center gap-1 truncate">
-            <Database className="w-3 h-3 text-blue-400 shrink-0" />
+            <Database className="w-3 h-3 text-blue-500 dark:text-blue-400 shrink-0" />
             <span>100% Atlas indexed</span>
           </p>
         </div>
 
-        {/* Active Themes Card */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-purple-500/40 transition min-h-[110px] sm:min-h-[120px]">
+        {/* PRIMARY SEMANTIC CARD: Active Themes */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-blue-500/40 transition min-h-[110px] sm:min-h-[120px]">
           <div>
             <div className="flex items-center justify-between text-content-muted mb-1.5">
               <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold truncate">
                 Active Themes
               </span>
-              <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
                 <Layers className="w-3.5 h-3.5" />
               </div>
             </div>
@@ -313,21 +308,21 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
           <p className="text-[10px] sm:text-[11px] text-content-muted mt-2 truncate">
             {dataHealth.orphanCategories.length === 0 ? (
-              <span className="text-emerald-400 font-medium">All categories populated</span>
+              <span className="text-emerald-500 font-medium">All categories populated</span>
             ) : (
-              <span className="text-amber-400 font-medium">{dataHealth.orphanCategories.length} empty category</span>
+              <span className="text-amber-500 font-medium">{dataHealth.orphanCategories.length} empty category</span>
             )}
           </p>
         </div>
 
-        {/* Interaction Styles Card */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-cyan-500/40 transition min-h-[110px] sm:min-h-[120px]">
+        {/* PRIMARY SEMANTIC CARD: Interaction Styles */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-blue-500/40 transition min-h-[110px] sm:min-h-[120px]">
           <div>
             <div className="flex items-center justify-between text-content-muted mb-1.5">
               <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold truncate">
                 Interaction Styles
               </span>
-              <div className="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
                 <MessageSquareQuote className="w-3.5 h-3.5" />
               </div>
             </div>
@@ -341,20 +336,22 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </p>
         </div>
 
-        {/* Human Contributions Card */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-emerald-500/40 transition min-h-[110px] sm:min-h-[120px] min-[375px]:col-span-2 lg:col-span-1">
+        {/* PRIMARY SEMANTIC CARD: Human Contributions (Primary blue tone, neutral metric) */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-blue-500/40 transition min-h-[110px] sm:min-h-[120px] min-[375px]:col-span-2 lg:col-span-1">
           <div>
             <div className="flex items-center justify-between text-content-muted mb-1.5">
               <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold truncate">
                 Human Contributions
               </span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
                 <Users className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-content tracking-tight">
               <AnimatedNumber value={kpis.humanCreatedCount} />
-              <span className="text-xs font-normal text-emerald-400 ml-1">({kpis.humanPercentage}%)</span>
+              <span className="text-xs font-normal text-blue-500 dark:text-blue-400 ml-1">
+                ({kpis.humanPercentage}%)
+              </span>
             </div>
           </div>
           <p className="text-[10px] sm:text-[11px] text-content-muted mt-2 truncate">
@@ -363,13 +360,16 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
         </div>
       </div>
 
-      {/* [MOBILE-FIRST LAYOUT 3]: 2 Distribution Charts (1 column mobile, 2 columns desktop, no internal scroll) */}
+      {/* 2 Distribution Charts:
+          - Unified Neutral Palette across all category/type bars & dots
+          - Rank Opacity: 100% on top, gently tapering down for visual hierarchy without hue pollution
+      */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-        {/* Category Balance Block */}
+        {/* Category Balance Block (Neutral Bars with Rank Opacity) */}
         <div className="p-4 sm:p-5 lg:p-6 rounded-2xl bg-surface-card border border-edge space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
                 <Layers className="w-4 h-4" />
               </div>
               <div className="min-w-0">
@@ -383,9 +383,11 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
 
           <div className="space-y-3 pt-1">
-            {categoryDistribution.map((cat) => {
+            {categoryDistribution.map((cat, index) => {
               const isUnderrepresented = cat.percentage < 5 && cat.count > 0;
               const isEmpty = cat.count === 0;
+              // Opacity gradient based on ranking (1.0 down to 0.4)
+              const rankOpacity = Math.max(0.4, 1 - (index / Math.max(categoryDistribution.length - 1, 1)) * 0.6);
 
               return (
                 <div
@@ -399,25 +401,25 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                   className={`space-y-1.5 p-2 rounded-xl transition ${
                     cat.count > 0
                       ? 'hover:bg-surface-elevated/70 cursor-pointer active:scale-[0.99]'
-                      : 'opacity-60'
+                      : 'opacity-50'
                   }`}
                   title={cat.count > 0 ? `Filter questions by "${cat.label}"` : 'No questions in this category'}
                 >
-                  {/* [MOBILE-FIRST 6]: Prevent awkward text wrapping on narrow screens */}
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2 min-w-0">
+                      {/* Unified Neutral Dot with Opacity Taper */}
                       <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: cat.color }}
+                        className="w-2 h-2 rounded-full shrink-0 bg-slate-400 dark:bg-slate-300"
+                        style={{ opacity: rankOpacity }}
                       />
                       <span className="font-medium text-content truncate">{cat.label}</span>
                       {isEmpty && (
-                        <span className="text-[10px] px-1.5 py-0.2 font-semibold bg-red-500/20 text-red-300 border border-red-500/30 rounded shrink-0">
+                        <span className="text-[10px] px-1.5 py-0.2 font-semibold bg-surface-elevated text-content-muted border border-edge rounded shrink-0">
                           Empty
                         </span>
                       )}
                       {isUnderrepresented && (
-                        <span className="text-[10px] px-1.5 py-0.2 font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded shrink-0">
+                        <span className="text-[10px] px-1.5 py-0.2 font-semibold bg-surface-elevated text-content-muted border border-edge rounded shrink-0">
                           Low (&lt;5%)
                         </span>
                       )}
@@ -430,13 +432,13 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
+                  {/* Unified Neutral Progress Bar */}
                   <div className="h-2 w-full bg-surface-elevated rounded-full overflow-hidden border border-edge/60">
                     <div
-                      className="h-full rounded-full transition-all duration-700 ease-out"
+                      className="h-full rounded-full bg-slate-400 dark:bg-slate-300 transition-all duration-700 ease-out"
                       style={{
                         width: `${Math.max(cat.percentage, cat.count > 0 ? 2 : 0)}%`,
-                        backgroundColor: cat.color,
+                        opacity: rankOpacity,
                       }}
                     />
                   </div>
@@ -446,11 +448,11 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
         </div>
 
-        {/* [MOBILE-FIRST LAYOUT 4]: Format Diversity Block (No nested scroll, Top 5 + Show More) */}
+        {/* Format Diversity Block (Neutral Bars with Rank Opacity) */}
         <div className="p-4 sm:p-5 lg:p-6 rounded-2xl bg-surface-card border border-edge space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-cyan-500/15 text-cyan-400 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
                 <MessageSquareQuote className="w-4 h-4" />
               </div>
               <div className="min-w-0">
@@ -463,10 +465,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </span>
           </div>
 
-          {/* No internal scrollbar! List expands smoothly with toggle */}
           <div className="space-y-3 pt-1">
-            {visibleFormats.map((type) => {
+            {visibleFormats.map((type, index) => {
               const isEmpty = type.count === 0;
+              const rankOpacity = Math.max(0.4, 1 - (index / Math.max(typeDistribution.length - 1, 1)) * 0.6);
 
               return (
                 <div
@@ -480,18 +482,22 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                   className={`space-y-1.5 p-2 rounded-xl transition ${
                     type.count > 0
                       ? 'hover:bg-surface-elevated/70 cursor-pointer active:scale-[0.99]'
-                      : 'opacity-60'
+                      : 'opacity-50'
                   }`}
                   title={type.count > 0 ? `Filter questions by "${type.label}"` : 'No questions in this format'}
                 >
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-4 h-4 text-cyan-400 shrink-0 flex items-center justify-center">
+                      {/* Unified Neutral Icon with Opacity Taper */}
+                      <div
+                        className="w-4 h-4 text-content-muted shrink-0 flex items-center justify-center"
+                        style={{ opacity: rankOpacity }}
+                      >
                         <IconHelper name={type.iconName} className="w-3.5 h-3.5" />
                       </div>
                       <span className="font-medium text-content truncate">{type.label}</span>
                       {isEmpty && (
-                        <span className="text-[10px] px-1.5 py-0.2 font-semibold bg-red-500/20 text-red-300 border border-red-500/30 rounded shrink-0">
+                        <span className="text-[10px] px-1.5 py-0.2 font-semibold bg-surface-elevated text-content-muted border border-edge rounded shrink-0">
                           Empty
                         </span>
                       )}
@@ -504,12 +510,13 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
+                  {/* Unified Neutral Progress Bar */}
                   <div className="h-2 w-full bg-surface-elevated rounded-full overflow-hidden border border-edge/60">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-700 ease-out"
+                      className="h-full rounded-full bg-slate-400 dark:bg-slate-300 transition-all duration-700 ease-out"
                       style={{
                         width: `${Math.max(type.percentage, type.count > 0 ? 2 : 0)}%`,
+                        opacity: rankOpacity,
                       }}
                     />
                   </div>
@@ -518,7 +525,6 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             })}
           </div>
 
-          {/* [UI/UX IMPROVEMENT 4]: Show more toggle button for mobile and compact desktop viewing */}
           {typeDistribution.length > 5 && (
             <button
               onClick={() => {
@@ -542,16 +548,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
         </div>
       </div>
 
-      {/* [MOBILE-FIRST LAYOUT 3 & 5]: Data Health & Author Contributions 
-          - Mobile: 1 column
-          - Desktop: 2 columns
-          - Elimination of dead whitespace in Data Health
-      */}
+      {/* Data Health & Author Contributions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-        {/* [UI/UX IMPROVEMENT 5]: Data Health & Linting (Clean Reordered Flow: Length Stats -> Top Tags -> Alerts) */}
+        {/* Data Health & Linting Block */}
         <div className="p-4 sm:p-5 lg:p-6 rounded-2xl bg-surface-card border border-edge space-y-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
               <FileText className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -560,7 +562,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
 
-          {/* Section 1: Quick Metrics Grid */}
+          {/* Quick Metrics Grid (Neutral Slate) */}
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <div className="p-2.5 sm:p-3 rounded-xl bg-surface-elevated border border-edge text-center sm:text-left">
               <p className="text-[10px] uppercase font-semibold text-content-muted">Avg Length</p>
@@ -585,10 +587,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
 
-          {/* Section 2: Top Tags Cloud (Placed directly under stats without empty gap) */}
+          {/* Top Tags Cloud (Neutral Slate Badges) */}
           <div className="space-y-2 pt-1">
             <p className="text-[11px] font-semibold text-content-muted flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-blue-400" />
+              <Tag className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
               Top Tags Frequency
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -599,7 +601,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs bg-surface-elevated border border-edge text-content-muted hover:text-content transition"
                   >
                     <span>#{item.tag}</span>
-                    <span className="text-[10px] font-semibold px-1 py-0.2 rounded bg-blue-500/20 text-blue-300">
+                    <span className="text-[10px] font-semibold px-1 py-0.2 rounded bg-surface border border-edge/60 text-content-muted">
                       {item.count}
                     </span>
                   </span>
@@ -610,9 +612,9 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Alerts at the bottom */}
+          {/* Alerts: Warning (Amber) & Success (Emerald) */}
           <div className="space-y-2.5 pt-1">
-            {/* [INTERACTION 10]: Clickable Long Questions Warning */}
+            {/* WARNING SEMANTIC: Long Questions (>160 chars) */}
             {dataHealth.longQuestionsCount > 0 ? (
               <div
                 role="button"
@@ -629,31 +631,31 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                     onNavigateToFilter({ tab: 'questions', filter: 'long' });
                   }
                 }}
-                className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2.5 text-xs text-amber-300 hover:border-amber-500/60 transition cursor-pointer min-h-[44px] group"
+                className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2.5 text-xs text-amber-500 hover:border-amber-500/60 transition cursor-pointer min-h-[44px] group"
                 title="Click to view all questions exceeding 160 characters"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
                   <span className="truncate">
                     <strong>{dataHealth.longQuestionsCount}</strong> questions exceed 160 chars (may wrap on Stage View).
                   </span>
                 </div>
-                <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1 shrink-0 group-hover:translate-x-0.5 transition-transform">
+                <span className="text-[11px] font-semibold text-amber-500 flex items-center gap-1 shrink-0 group-hover:translate-x-0.5 transition-transform">
                   <span>View</span>
                   <ArrowRight className="w-3 h-3" />
                 </span>
               </div>
             ) : (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-xs text-emerald-300">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-xs text-emerald-500">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
                 <span>All questions fit within comfortable presentation length (&le; 160 chars).</span>
               </div>
             )}
 
-            {/* Orphan Entities Status */}
+            {/* SUCCESS OR WARNING: Orphan Entities Status */}
             {dataHealth.orphanCategories.length > 0 || dataHealth.orphanTypes.length > 0 ? (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-2.5 text-xs text-red-300">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-500">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
                 <div className="min-w-0">
                   {dataHealth.orphanCategories.length > 0 && (
                     <p className="truncate">
@@ -668,18 +670,18 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-xs text-emerald-300">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-xs text-emerald-500">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
                 <span>Zero orphan categories or formats found. All entities actively utilized.</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* [MOBILE-FIRST LAYOUT 6]: Contributor Network & Provenance (Robust responsive wrapping) */}
+        {/* Author Contributions & Provenance Block */}
         <div className="p-4 sm:p-5 lg:p-6 rounded-2xl bg-surface-card border border-edge space-y-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
               <Users className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -688,7 +690,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
 
-          {/* Provenance Dual Bar */}
+          {/* Provenance: Primary Blue (Admin Created) vs Neutral Slate (System Seed) */}
           <div className="space-y-2 p-3.5 rounded-xl bg-surface-elevated border border-edge">
             <div className="flex flex-col min-[380px]:flex-row min-[380px]:items-center justify-between gap-1 text-xs">
               <span className="font-semibold text-content">Content Provenance</span>
@@ -698,32 +700,32 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
             <div className="h-2.5 w-full bg-surface rounded-full overflow-hidden flex border border-edge/60">
               <div
-                className="h-full bg-emerald-500 transition-all duration-700"
+                className="h-full bg-blue-600 transition-all duration-700"
                 style={{ width: `${contributors.humanPercentage}%` }}
                 title={`Admin Contributions: ${contributors.humanCount} (${contributors.humanPercentage}%)`}
               />
               <div
-                className="h-full bg-blue-600 transition-all duration-700"
+                className="h-full bg-slate-300 dark:bg-slate-700 transition-all duration-700"
                 style={{ width: `${100 - contributors.humanPercentage}%` }}
                 title={`System Seed: ${contributors.seedCount}`}
               />
             </div>
             <div className="flex flex-col min-[380px]:flex-row min-[380px]:items-center justify-between gap-1 text-[11px] text-content-muted pt-1">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
                 Admin Created ({contributors.humanCount})
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-500 shrink-0" />
                 System Default ({contributors.seedCount})
               </span>
             </div>
           </div>
 
-          {/* [MOBILE-FIRST 6]: Top 3 Contributing Admins with Graceful Multi-line Wrapping on Small Screens */}
+          {/* Top Contributing Admins (Clean Neutral & Primary Ranking) */}
           <div className="space-y-2.5">
             <p className="text-[11px] font-semibold text-content-muted flex items-center gap-1.5">
-              <Award className="w-3.5 h-3.5 text-amber-400" />
+              <Award className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
               Top Contributing Admins
             </p>
 
@@ -738,10 +740,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                       <span
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
                           index === 0
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            : index === 1
-                            ? 'bg-slate-400/20 text-slate-300 border border-slate-400/30'
-                            : 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                            ? 'bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30'
+                            : 'bg-surface-elevated text-content-muted border border-edge'
                         }`}
                       >
                         {index + 1}
@@ -765,8 +765,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             )}
           </div>
 
-          <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-[11px] text-content-muted flex items-start gap-2">
-            <HelpCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+          <div className="p-3 rounded-xl bg-surface-elevated border border-edge text-[11px] text-content-muted flex items-start gap-2">
+            <HelpCircle className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
             <span>
               Author attribution is tracked automatically when questions are authored or imported into MongoDB.
             </span>
