@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { CategoryId, Question, QuestionTypeId } from '@/types/question';
+import { CategoryId, Question, QuestionTypeId, CategoryMeta, TypeMeta } from '@/types/question';
 import { CATEGORIES, QUESTION_TYPES, TAG_LABELS } from '@/data/metadata';
 import { IconHelper } from '@/components/ui/IconHelper';
 import { hapticFeedback } from '@/lib/haptics';
@@ -20,6 +20,7 @@ interface InlineFiltersProps {
   selectedCategories: CategoryId[];
   onToggleCategory: (cat: CategoryId) => void;
   onClearCategories: () => void;
+  categories?: CategoryMeta[];
 
   // Author
   selectedAuthor?: string;
@@ -30,6 +31,7 @@ interface InlineFiltersProps {
   selectedTypes: QuestionTypeId[];
   onToggleType: (typeId: QuestionTypeId) => void;
   onClearTypes: () => void;
+  types?: TypeMeta[];
 
   // Tag
   selectedTags: string[];
@@ -46,12 +48,14 @@ export const InlineFilters: React.FC<InlineFiltersProps> = ({
   selectedCategories,
   onToggleCategory,
   onClearCategories,
+  categories = [],
   selectedAuthor,
   onSelectAuthor,
   authorFrequencies,
   selectedTypes,
   onToggleType,
   onClearTypes,
+  types = [],
   selectedTags,
   onToggleTag,
   onClearTags,
@@ -59,8 +63,6 @@ export const InlineFilters: React.FC<InlineFiltersProps> = ({
   onResetAll,
   activeFiltersCount,
 }) => {
-  const categoryIds = Object.keys(CATEGORIES) as CategoryId[];
-
   // Calculate counts per category
   const categoryCounts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -70,20 +72,79 @@ export const InlineFilters: React.FC<InlineFiltersProps> = ({
     return map;
   }, [questions]);
 
+  // Merge categories from props, fallback to default CATEGORIES, and ensure any category present in questions is included!
+  const categoryList: CategoryMeta[] = useMemo(() => {
+    const map = new Map<string, CategoryMeta>();
+
+    // 1. Static defaults
+    for (const c of Object.values(CATEGORIES)) {
+      map.set(c.id, c);
+    }
+
+    // 2. Dynamic categories from database (props)
+    if (categories && categories.length > 0) {
+      for (const c of categories) {
+        map.set(c.id, c);
+      }
+    }
+
+    // 3. Any category that exists on questions in current dataset
+    for (const q of questions) {
+      if (q.category && !map.has(q.category)) {
+        map.set(q.category, {
+          id: q.category,
+          label: q.category,
+          description: '',
+          color: '#3b82f6',
+          gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+          glowColor: 'rgba(59, 130, 246, 0.4)',
+          borderGlow: 'rgba(59, 130, 246, 0.6)',
+          iconName: 'Users',
+        });
+      }
+    }
+
+    // Filter out categories with 0 questions IF they are temporary/unused, but keep those that have questions or are core defaults
+    return Array.from(map.values()).filter((c) => {
+      const count = categoryCounts[c.id] || 0;
+      if (count > 0) return true;
+      return Boolean(CATEGORIES[c.id as CategoryId]);
+    });
+  }, [categories, questions, categoryCounts]);
+
   // Calculate type frequencies (only include types with count > 0)
   const typeFrequencies = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const q of questions) {
       counts[q.type] = (counts[q.type] || 0) + 1;
     }
-    return (Object.keys(QUESTION_TYPES) as QuestionTypeId[])
-      .map((key) => ({
-        id: key,
-        meta: QUESTION_TYPES[key],
-        count: counts[key] || 0,
+    const typeMetaMap = new Map<string, TypeMeta>();
+    for (const t of Object.values(QUESTION_TYPES)) {
+      typeMetaMap.set(t.id, t);
+    }
+    if (types && types.length > 0) {
+      for (const t of types) {
+        typeMetaMap.set(t.id, t);
+      }
+    }
+    for (const q of questions) {
+      if (q.type && !typeMetaMap.has(q.type)) {
+        typeMetaMap.set(q.type, {
+          id: q.type,
+          label: q.type,
+          hint: '',
+          iconName: 'HelpCircle',
+        });
+      }
+    }
+    return Array.from(typeMetaMap.values())
+      .map((t) => ({
+        id: t.id as QuestionTypeId,
+        meta: t,
+        count: counts[t.id] || 0,
       }))
       .filter((item) => item.count > 0);
-  }, [questions]);
+  }, [questions, types]);
 
   // Calculate tag frequencies sorted descending
   const tagFrequencies = useMemo(() => {
@@ -182,16 +243,15 @@ export const InlineFilters: React.FC<InlineFiltersProps> = ({
             </button>
 
             {/* Individual Category Chips */}
-            {categoryIds.map((id) => {
-              const cat = CATEGORIES[id];
-              const isSelected = selectedCategories.includes(id);
-              const count = categoryCounts[id] || 0;
+            {categoryList.map((cat) => {
+              const isSelected = selectedCategories.includes(cat.id);
+              const count = categoryCounts[cat.id] || 0;
 
               return (
                 <button
-                  key={id}
+                  key={cat.id}
                   onClick={() => {
-                    onToggleCategory(id);
+                    onToggleCategory(cat.id);
                     hapticFeedback.light();
                   }}
                   className={`group shrink-0 inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-medium transition-all duration-200 ${

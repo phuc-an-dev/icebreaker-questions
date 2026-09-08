@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server';
-import { getAllQuestions } from '@/lib/db-questions';
+import { getAllQuestions, getCategoriesWithDefaults, getQuestionTypesWithDefaults } from '@/lib/db-questions';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const questions = await getAllQuestions();
+    const [questions, categories, types] = await Promise.all([
+      getAllQuestions(),
+      getCategoriesWithDefaults(),
+      getQuestionTypesWithDefaults(),
+    ]);
     return NextResponse.json({
       success: true,
       count: questions.length,
       data: questions,
+      categories,
+      types,
     });
   } catch (error) {
     console.error('Failed to fetch questions from MongoDB:', error);

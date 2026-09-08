@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo, useCallback, useSyncExternalStore, useEffect } from 'react';
-import { Question, CategoryId, QuestionTypeId, FilterState } from '@/types/question';
+import { Question, CategoryId, QuestionTypeId, FilterState, CategoryMeta, TypeMeta } from '@/types/question';
+import { CATEGORIES, QUESTION_TYPES } from '@/data/metadata';
 import { stripAccents } from '@/lib/utils';
 
 const STORAGE_KEY_ASKED = 'icebreaker_asked_v2';
@@ -19,11 +20,23 @@ function getInitialSet(key: string): Set<number> {
   }
 }
 
-export function useQuestionsState(initialQuestions: Question[] = []) {
+export function useQuestionsState(
+  initialQuestions: Question[] = [],
+  initialCategories: CategoryMeta[] = [],
+  initialTypes: TypeMeta[] = []
+) {
   const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   const hasInitialQuestions = initialQuestions && initialQuestions.length > 0;
   const [fetchedQuestions, setFetchedQuestions] = useState<Question[]>([]);
+  const [categories, setCategories] = useState<CategoryMeta[]>(() => {
+    if (initialCategories && initialCategories.length > 0) return initialCategories;
+    return Object.values(CATEGORIES);
+  });
+  const [types, setTypes] = useState<TypeMeta[]>(() => {
+    if (initialTypes && initialTypes.length > 0) return initialTypes;
+    return Object.values(QUESTION_TYPES);
+  });
   const [isFetching, setIsFetching] = useState<boolean>(!hasInitialQuestions);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +59,12 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
           setFetchedQuestions(data.data);
+          if (Array.isArray(data.categories) && data.categories.length > 0) {
+            setCategories(data.categories);
+          }
+          if (Array.isArray(data.types) && data.types.length > 0) {
+            setTypes(data.types);
+          }
           setError(null);
         } else {
           throw new Error(data.error || 'Invalid response data');
@@ -358,6 +377,8 @@ export function useQuestionsState(initialQuestions: Question[] = []) {
     allQuestions,
     filteredQuestions,
     filters,
+    categories,
+    types,
     askedIds,
     favoriteIds,
     activeFiltersCount,

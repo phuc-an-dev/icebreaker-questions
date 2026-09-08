@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuestionsState } from '@/hooks/useQuestionsState';
-import { Question } from '@/types/question';
+import { Question, CategoryMeta, TypeMeta } from '@/types/question';
 import { QuestionCard } from '@/components/cards/QuestionCard';
 import { InlineFilters } from '@/components/filters/InlineFilters';
 import { FilterBar } from '@/components/filters/FilterBar';
@@ -24,9 +24,15 @@ import {
 
 interface IcebreakerClientProps {
   initialQuestions?: Question[];
+  initialCategories?: CategoryMeta[];
+  initialTypes?: TypeMeta[];
 }
 
-export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProps) {
+export function IcebreakerClient({
+  initialQuestions = [],
+  initialCategories = [],
+  initialTypes = [],
+}: IcebreakerClientProps) {
   const {
     isClient,
     isLoading,
@@ -36,6 +42,8 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
     allQuestions,
     filteredQuestions,
     filters,
+    categories,
+    types,
     askedIds,
     favoriteIds,
     activeFiltersCount,
@@ -55,7 +63,23 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
     setOnlyFavorites,
     resetFilters,
     getRandomQuestion,
-  } = useQuestionsState(initialQuestions);
+  } = useQuestionsState(initialQuestions, initialCategories, initialTypes);
+
+  const categoriesMap = React.useMemo(() => {
+    const map: Record<string, CategoryMeta> = {};
+    for (const c of categories) {
+      map[c.id] = c;
+    }
+    return map;
+  }, [categories]);
+
+  const typesMap = React.useMemo(() => {
+    const map: Record<string, TypeMeta> = {};
+    for (const t of types) {
+      map[t.id] = t;
+    }
+    return map;
+  }, [types]);
 
   // Stage presentation mode state
   const [stageOpen, setStageOpen] = useState(false);
@@ -183,12 +207,14 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
           selectedCategories={filters.categories}
           onToggleCategory={toggleCategory}
           onClearCategories={clearCategories}
+          categories={categories}
           selectedAuthor={filters.author}
           onSelectAuthor={setAuthor}
           authorFrequencies={authorFrequencies}
           selectedTypes={filters.types}
           onToggleType={toggleType}
           onClearTypes={clearTypes}
+          types={types}
           selectedTags={filters.tags}
           onToggleTag={toggleTag}
           onClearTags={clearTags}
@@ -279,6 +305,8 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
                       onToggleAsked={toggleAsked}
                       onToggleFavorite={toggleFavorite}
                       onOpenStage={(target) => handleOpenStage(target)}
+                      categoryMeta={categoriesMap[q.category]}
+                      typeMeta={typesMap[q.type]}
                     />
                   </div>
                 );
@@ -377,6 +405,8 @@ export function IcebreakerClient({ initialQuestions = [] }: IcebreakerClientProp
         onToggleFavorite={toggleFavorite}
         currentIndex={currentStageIndex}
         totalCount={filteredQuestions.length}
+        categoryMeta={currentStageQuestion ? categoriesMap[currentStageQuestion.category] : undefined}
+        typeMeta={currentStageQuestion ? typesMap[currentStageQuestion.type] : undefined}
       />
     </main>
   );

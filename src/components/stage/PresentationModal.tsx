@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Question } from '@/types/question';
+import { Question, CategoryMeta, TypeMeta } from '@/types/question';
 import { CATEGORIES, QUESTION_TYPES, TAG_LABELS } from '@/data/metadata';
 import { HoloCanvasCard } from '@/components/canvas/HoloCanvasCard';
 import { StageCanvasBg } from '@/components/canvas/StageCanvasBg';
@@ -34,6 +34,8 @@ interface PresentationModalProps {
   onToggleFavorite: (id: number) => void;
   currentIndex: number;
   totalCount: number;
+  categoryMeta?: CategoryMeta;
+  typeMeta?: TypeMeta;
 }
 
 const cardVariants = {
@@ -75,6 +77,8 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
   onToggleFavorite,
   currentIndex,
   totalCount,
+  categoryMeta,
+  typeMeta,
 }) => {
   const [copied, setCopied] = useState(false);
   const [direction, setDirection] = useState(1);
@@ -118,8 +122,17 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
 
   if (!isOpen || !question) return null;
 
-  const cat = CATEGORIES[question.category] || CATEGORIES.group;
-  const typeMeta = QUESTION_TYPES[question.type];
+  const cat = categoryMeta || CATEGORIES[question.category] || {
+    id: question.category,
+    label: question.category,
+    color: '#3b82f6',
+    iconName: 'Users',
+    description: '',
+    gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+    glowColor: 'rgba(59, 130, 246, 0.4)',
+    borderGlow: 'rgba(59, 130, 246, 0.6)',
+  };
+  const activeTypeMeta = typeMeta || QUESTION_TYPES[question.type];
 
   const handleClose = () => {
     hapticFeedback.medium();
@@ -236,14 +249,14 @@ export const PresentationModal: React.FC<PresentationModalProps> = ({
                   </div>
 
                   {/* Dedicated Question Type & Instruction Banner */}
-                  {typeMeta && (
+                  {activeTypeMeta && (
                     <div className="mb-4 rounded-xl border border-edge bg-surface-elevated/50 p-3">
                       <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-300">
-                        <IconHelper name={typeMeta.iconName} className="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" />
-                        <span>{typeMeta.label}</span>
+                        <IconHelper name={activeTypeMeta.iconName} className="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" />
+                        <span>{activeTypeMeta.label}</span>
                       </div>
                       <p className="mt-1 text-xs text-content-secondary leading-relaxed">
-                        {typeMeta.hint}
+                        {activeTypeMeta.hint}
                       </p>
                     </div>
                   )}

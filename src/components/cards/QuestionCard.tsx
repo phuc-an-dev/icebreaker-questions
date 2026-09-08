@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Question } from '@/types/question';
+import { Question, CategoryMeta, TypeMeta } from '@/types/question';
 import { CATEGORIES, QUESTION_TYPES, TAG_LABELS } from '@/data/metadata';
 import { HoloCanvasCard } from '@/components/canvas/HoloCanvasCard';
 import { IconHelper } from '@/components/ui/IconHelper';
@@ -21,6 +21,8 @@ interface QuestionCardProps {
   onToggleAsked: (id: number) => void;
   onToggleFavorite: (id: number) => void;
   onOpenStage: (question: Question) => void;
+  categoryMeta?: CategoryMeta;
+  typeMeta?: TypeMeta;
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -30,10 +32,21 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   onToggleAsked,
   onToggleFavorite,
   onOpenStage,
+  categoryMeta,
+  typeMeta,
 }) => {
   const [copied, setCopied] = useState(false);
-  const cat = CATEGORIES[question.category] || CATEGORIES.group;
-  const typeMeta = QUESTION_TYPES[question.type];
+  const cat = categoryMeta || CATEGORIES[question.category] || {
+    id: question.category,
+    label: question.category,
+    color: '#3b82f6',
+    iconName: 'Users',
+    description: '',
+    gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+    glowColor: 'rgba(59, 130, 246, 0.4)',
+    borderGlow: 'rgba(59, 130, 246, 0.6)',
+  };
+  const activeTypeMeta = typeMeta || QUESTION_TYPES[question.type];
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -87,14 +100,14 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           </div>
 
           {/* Dedicated Question Type & Full Instruction Banner (No truncation, no awkward wraps) */}
-          {typeMeta && (
+          {activeTypeMeta && (
             <div className="mb-3.5 rounded-xl border border-edge-subtle bg-surface-elevated/50 p-2.5">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-300/90 whitespace-nowrap">
-                <IconHelper name={typeMeta.iconName} className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
-                <span>{typeMeta.label}</span>
+                <IconHelper name={activeTypeMeta.iconName} className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
+                <span>{activeTypeMeta.label}</span>
               </div>
               <p className="mt-1 text-[11px] leading-relaxed text-content-muted">
-                {typeMeta.hint}
+                {activeTypeMeta.hint}
               </p>
             </div>
           )}
