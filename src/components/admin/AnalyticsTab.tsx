@@ -269,14 +269,14 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
         </div>
 
-        {/* PRIMARY SEMANTIC CARD: Total Questions */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-blue-500/40 transition min-h-[110px] sm:min-h-[120px]">
+        {/* VIOLET SEMANTIC CARD: Total Questions */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-violet-500/40 transition min-h-[110px] sm:min-h-[120px]">
           <div>
             <div className="flex items-center justify-between text-content-muted mb-1.5">
               <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold truncate">
                 Total Questions
               </span>
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-violet-500/10 text-violet-500 dark:text-violet-400 flex items-center justify-center shrink-0">
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
             </div>
@@ -285,12 +285,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
           <p className="text-[10px] sm:text-[11px] text-content-muted mt-2 flex items-center gap-1 truncate">
-            <Database className="w-3 h-3 text-blue-500 dark:text-blue-400 shrink-0" />
+            <Database className="w-3 h-3 text-violet-500 dark:text-violet-400 shrink-0" />
             <span>100% Atlas indexed</span>
           </p>
         </div>
 
-        {/* PRIMARY SEMANTIC CARD: Active Themes */}
+        {/* BLUE SEMANTIC CARD: Active Themes */}
         <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-blue-500/40 transition min-h-[110px] sm:min-h-[120px]">
           <div>
             <div className="flex items-center justify-between text-content-muted mb-1.5">
@@ -315,14 +315,14 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </p>
         </div>
 
-        {/* PRIMARY SEMANTIC CARD: Interaction Styles */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-blue-500/40 transition min-h-[110px] sm:min-h-[120px]">
+        {/* TEAL SEMANTIC CARD: Interaction Styles */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-teal-500/40 transition min-h-[110px] sm:min-h-[120px]">
           <div>
             <div className="flex items-center justify-between text-content-muted mb-1.5">
               <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold truncate">
                 Interaction Styles
               </span>
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-500 dark:text-teal-400 flex items-center justify-center shrink-0">
                 <MessageSquareQuote className="w-3.5 h-3.5" />
               </div>
             </div>
@@ -336,20 +336,20 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </p>
         </div>
 
-        {/* PRIMARY SEMANTIC CARD: Human Contributions (Primary blue tone, neutral metric) */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-blue-500/40 transition min-h-[110px] sm:min-h-[120px] min-[375px]:col-span-2 lg:col-span-1">
+        {/* GREEN SEMANTIC CARD: Human Contributions */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-card border border-edge flex flex-col justify-between hover:border-emerald-500/40 transition min-h-[110px] sm:min-h-[120px] min-[375px]:col-span-2 lg:col-span-1">
           <div>
             <div className="flex items-center justify-between text-content-muted mb-1.5">
               <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold truncate">
                 Human Contributions
               </span>
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0">
                 <Users className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-content tracking-tight">
               <AnimatedNumber value={kpis.humanCreatedCount} />
-              <span className="text-xs font-normal text-blue-500 dark:text-blue-400 ml-1">
+              <span className="text-xs font-normal text-emerald-500 dark:text-emerald-400 ml-1">
                 ({kpis.humanPercentage}%)
               </span>
             </div>
@@ -361,15 +361,15 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       </div>
 
       {/* 2 Distribution Charts:
-          - Unified Neutral Palette across all category/type bars & dots
-          - Rank Opacity: 100% on top, gently tapering down for visual hierarchy without hue pollution
+          - Category Balance: Indigo/Violet family with ranking gradient (indigo-600 down to indigo-200)
+          - Format Diversity: Teal/Cyan family with ranking gradient (teal-600 down to teal-200)
       */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-        {/* Category Balance Block (Neutral Bars with Rank Opacity) */}
+        {/* Category Balance Block (Indigo/Violet Family with Rank Gradient) */}
         <div className="p-4 sm:p-5 lg:p-6 rounded-2xl bg-surface-card border border-edge space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
                 <Layers className="w-4 h-4" />
               </div>
               <div className="min-w-0">
@@ -386,8 +386,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             {categoryDistribution.map((cat, index) => {
               const isUnderrepresented = cat.percentage < 5 && cat.count > 0;
               const isEmpty = cat.count === 0;
-              // Opacity gradient based on ranking (1.0 down to 0.4)
-              const rankOpacity = Math.max(0.4, 1 - (index / Math.max(categoryDistribution.length - 1, 1)) * 0.6);
+              // Indigo gradient intensity based on ranking (1.0 for top down to 0.35 for lowest)
+              const rankOpacity = Math.max(0.35, 1 - (index / Math.max(categoryDistribution.length - 1, 1)) * 0.65);
 
               return (
                 <div
@@ -407,9 +407,9 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 >
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2 min-w-0">
-                      {/* Unified Neutral Dot with Opacity Taper */}
+                      {/* Indigo Dot with Rank Opacity */}
                       <span
-                        className="w-2 h-2 rounded-full shrink-0 bg-slate-400 dark:bg-slate-300"
+                        className="w-2 h-2 rounded-full shrink-0 bg-indigo-600 dark:bg-indigo-400"
                         style={{ opacity: rankOpacity }}
                       />
                       <span className="font-medium text-content truncate">{cat.label}</span>
@@ -432,10 +432,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                     </div>
                   </div>
 
-                  {/* Unified Neutral Progress Bar */}
+                  {/* Indigo Progress Bar with Rank Opacity */}
                   <div className="h-2 w-full bg-surface-elevated rounded-full overflow-hidden border border-edge/60">
                     <div
-                      className="h-full rounded-full bg-slate-400 dark:bg-slate-300 transition-all duration-700 ease-out"
+                      className="h-full rounded-full bg-indigo-600 dark:bg-indigo-400 transition-all duration-700 ease-out"
                       style={{
                         width: `${Math.max(cat.percentage, cat.count > 0 ? 2 : 0)}%`,
                         opacity: rankOpacity,
@@ -448,11 +448,11 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
         </div>
 
-        {/* Format Diversity Block (Neutral Bars with Rank Opacity) */}
+        {/* Format Diversity Block (Teal/Cyan Family with Rank Gradient) */}
         <div className="p-4 sm:p-5 lg:p-6 rounded-2xl bg-surface-card border border-edge space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-500 dark:text-teal-400 flex items-center justify-center shrink-0">
                 <MessageSquareQuote className="w-4 h-4" />
               </div>
               <div className="min-w-0">
@@ -468,7 +468,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           <div className="space-y-3 pt-1">
             {visibleFormats.map((type, index) => {
               const isEmpty = type.count === 0;
-              const rankOpacity = Math.max(0.4, 1 - (index / Math.max(typeDistribution.length - 1, 1)) * 0.6);
+              // Teal gradient intensity based on ranking (1.0 for top down to 0.35 for lowest)
+              const rankOpacity = Math.max(0.35, 1 - (index / Math.max(typeDistribution.length - 1, 1)) * 0.65);
 
               return (
                 <div
@@ -488,9 +489,9 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 >
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2 min-w-0">
-                      {/* Unified Neutral Icon with Opacity Taper */}
+                      {/* Teal Icon with Rank Opacity */}
                       <div
-                        className="w-4 h-4 text-content-muted shrink-0 flex items-center justify-center"
+                        className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 flex items-center justify-center"
                         style={{ opacity: rankOpacity }}
                       >
                         <IconHelper name={type.iconName} className="w-3.5 h-3.5" />
@@ -510,10 +511,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                     </div>
                   </div>
 
-                  {/* Unified Neutral Progress Bar */}
+                  {/* Teal Progress Bar with Rank Opacity */}
                   <div className="h-2 w-full bg-surface-elevated rounded-full overflow-hidden border border-edge/60">
                     <div
-                      className="h-full rounded-full bg-slate-400 dark:bg-slate-300 transition-all duration-700 ease-out"
+                      className="h-full rounded-full bg-teal-500 dark:bg-teal-400 transition-all duration-700 ease-out"
                       style={{
                         width: `${Math.max(type.percentage, type.count > 0 ? 2 : 0)}%`,
                         opacity: rankOpacity,
@@ -587,10 +588,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
 
-          {/* Top Tags Cloud (Neutral Slate Badges) */}
+          {/* Top Tags Cloud (Indigo Pills with Contrast) */}
           <div className="space-y-2 pt-1">
             <p className="text-[11px] font-semibold text-content-muted flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+              <Tag className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
               Top Tags Frequency
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -598,10 +599,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 dataHealth.topTags.map((item) => (
                   <span
                     key={item.tag}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs bg-surface-elevated border border-edge text-content-muted hover:text-content transition"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 border border-indigo-200/80 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-500/30 transition shadow-xs"
                   >
-                    <span>#{item.tag}</span>
-                    <span className="text-[10px] font-semibold px-1 py-0.2 rounded bg-surface border border-edge/60 text-content-muted">
+                    <span className="font-medium">#{item.tag}</span>
+                    <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-indigo-100/90 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200">
                       {item.count}
                     </span>
                   </span>
@@ -678,10 +679,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
         </div>
 
-        {/* Author Contributions & Provenance Block */}
+        {/* Author Contributions & Provenance Block (Emerald Palette) */}
         <div className="p-4 sm:p-5 lg:p-6 rounded-2xl bg-surface-card border border-edge space-y-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <Users className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -690,7 +691,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
 
-          {/* Provenance: Primary Blue (Admin Created) vs Neutral Slate (System Seed) */}
+          {/* Provenance: Emerald (Admin Created) vs Slate (System Seed) */}
           <div className="space-y-2 p-3.5 rounded-xl bg-surface-elevated border border-edge">
             <div className="flex flex-col min-[380px]:flex-row min-[380px]:items-center justify-between gap-1 text-xs">
               <span className="font-semibold text-content">Content Provenance</span>
@@ -700,19 +701,19 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
             <div className="h-2.5 w-full bg-surface rounded-full overflow-hidden flex border border-edge/60">
               <div
-                className="h-full bg-blue-600 transition-all duration-700"
+                className="h-full bg-emerald-500 transition-all duration-700"
                 style={{ width: `${contributors.humanPercentage}%` }}
                 title={`Admin Contributions: ${contributors.humanCount} (${contributors.humanPercentage}%)`}
               />
               <div
-                className="h-full bg-slate-300 dark:bg-slate-700 transition-all duration-700"
+                className="h-full bg-slate-200 dark:bg-slate-700 transition-all duration-700"
                 style={{ width: `${100 - contributors.humanPercentage}%` }}
                 title={`System Seed: ${contributors.seedCount}`}
               />
             </div>
             <div className="flex flex-col min-[380px]:flex-row min-[380px]:items-center justify-between gap-1 text-[11px] text-content-muted pt-1">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                 Admin Created ({contributors.humanCount})
               </span>
               <span className="flex items-center gap-1.5">
@@ -722,10 +723,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
 
-          {/* Top Contributing Admins (Clean Neutral & Primary Ranking) */}
+          {/* Top Contributing Admins (Emerald Palette) */}
           <div className="space-y-2.5">
             <p className="text-[11px] font-semibold text-content-muted flex items-center gap-1.5">
-              <Award className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+              <Award className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
               Top Contributing Admins
             </p>
 
@@ -740,7 +741,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                       <span
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
                           index === 0
-                            ? 'bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30'
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                             : 'bg-surface-elevated text-content-muted border border-edge'
                         }`}
                       >
@@ -766,7 +767,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
 
           <div className="p-3 rounded-xl bg-surface-elevated border border-edge text-[11px] text-content-muted flex items-start gap-2">
-            <HelpCircle className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
+            <HelpCircle className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" />
             <span>
               Author attribution is tracked automatically when questions are authored or imported into MongoDB.
             </span>
