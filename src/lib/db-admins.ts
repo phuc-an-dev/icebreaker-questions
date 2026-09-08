@@ -181,6 +181,7 @@ export async function updateAdminUser(
   id: string,
   updates: {
     name?: string;
+    email?: string;
     role?: AdminRole;
     status?: AdminStatus;
   }
@@ -194,6 +195,14 @@ export async function updateAdminUser(
   };
 
   if (updates.name) updateFields.name = updates.name.trim();
+  if (updates.email) {
+    const cleanEmail = updates.email.toLowerCase().trim();
+    const conflict = await collection.findOne({ email: cleanEmail, id: { $ne: id } });
+    if (conflict) {
+      throw new Error('An admin with this email address already exists');
+    }
+    updateFields.email = cleanEmail;
+  }
   if (updates.role) updateFields.role = updates.role;
   if (updates.status) {
     updateFields.status = updates.status;

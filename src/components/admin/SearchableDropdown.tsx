@@ -125,11 +125,18 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     closeDropdown(true);
   };
 
-  // Focus search input on open & re-scroll highlighted item
+  // Only show search input if there are at least 5 options
+  const showSearch = options.length >= 5;
+
+  // Focus search input (or highlighted option if search is hidden) on open
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
-        searchInputRef.current?.focus();
+        if (showSearch) {
+          searchInputRef.current?.focus();
+        } else {
+          optionRefs.current[highlightedIndex]?.focus();
+        }
         // Scroll highlighted item into view
         if (optionRefs.current[highlightedIndex]) {
           optionRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
@@ -137,7 +144,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
       }, 30);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, highlightedIndex]);
+  }, [isOpen, highlightedIndex, showSearch]);
 
   // Recalculate position on scroll or resize
   useEffect(() => {
@@ -248,7 +255,11 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     if (e.key === 'Tab') {
       if (e.shiftKey) {
         e.preventDefault();
-        searchInputRef.current?.focus();
+        if (showSearch) {
+          searchInputRef.current?.focus();
+        } else {
+          closeDropdown(true);
+        }
       } else {
         closeDropdown(false);
       }
@@ -290,18 +301,18 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         disabled={disabled}
         onClick={() => (isOpen ? closeDropdown(false) : openDropdown())}
         onKeyDown={handleTriggerKeyDown}
-        className={`w-full flex items-center justify-between px-3 py-2 bg-surface-card border rounded-xl text-left text-xs sm:text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+        className={`w-full min-h-[44px] flex items-center justify-between px-3.5 sm:px-4 py-2.5 bg-surface-input border rounded-xl text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
           isOpen
             ? 'border-blue-500 ring-2 ring-blue-500/30'
-            : 'border-edge-strong/80 hover:border-edge-strong'
+            : 'border-edge-strong hover:border-blue-400/60'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       >
-        <div className="flex items-center gap-2 overflow-hidden min-w-0">
+        <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
           {selectedOption ? (
             <>
               {selectedOption.iconName && (
                 <div
-                  className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 border"
+                  className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border"
                   style={{
                     backgroundColor: selectedOption.color ? `${selectedOption.color}20` : 'rgba(59,130,246,0.15)',
                     borderColor: selectedOption.color ? `${selectedOption.color}50` : 'rgba(59,130,246,0.3)',
@@ -311,13 +322,13 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                   <IconHelper name={selectedOption.iconName} className="w-3.5 h-3.5" />
                 </div>
               )}
-              <span className="text-content font-medium truncate">{selectedOption.label}</span>
+              <span className="text-content font-medium text-sm truncate">{selectedOption.label}</span>
               {showOptionId && (
                 <span className="text-xs text-content-muted font-mono shrink-0">({selectedOption.id})</span>
               )}
             </>
           ) : (
-            <span className="text-content-muted truncate">{placeholder}</span>
+            <span className="text-content-muted text-sm truncate">{placeholder}</span>
           )}
         </div>
         <ChevronDown
@@ -338,24 +349,26 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             style={portalStyle}
             className="bg-surface-card border border-edge-strong rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-72"
           >
-            {/* Search */}
-            <div className="p-2.5 border-b border-edge bg-surface-elevated/60 shrink-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-muted pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setHighlightedIndex(0);
-                  }}
-                  onKeyDown={handleSearchKeyDown}
-                  placeholder={searchPlaceholder}
-                  className="w-full pl-9 pr-3 py-1.5 bg-surface-input border border-edge-strong rounded-xl text-content text-xs placeholder-content-muted focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
-                />
+            {/* Search (only rendered if 5 or more options) */}
+            {showSearch && (
+              <div className="p-2.5 border-b border-edge bg-surface-elevated/60 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-muted pointer-events-none" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setHighlightedIndex(0);
+                    }}
+                    onKeyDown={handleSearchKeyDown}
+                    placeholder={searchPlaceholder}
+                    className="w-full pl-9 pr-3 py-2 bg-surface-input border border-edge-strong rounded-xl text-content text-sm placeholder-content-muted focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Options list */}
             <div
@@ -384,7 +397,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                       onClick={() => handleSelectOption(opt)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
                       onKeyDown={(e) => handleOptionKeyDown(e, idx, opt)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition cursor-pointer focus:outline-none ${
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-sm transition cursor-pointer focus:outline-none ${
                         isHighlighted
                           ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/40'
                           : isSelected
@@ -395,7 +408,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                       <div className="flex items-center gap-2.5 min-w-0 pr-2">
                         {opt.iconName && (
                           <div
-                            className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 border"
+                            className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border"
                             style={{
                               backgroundColor: opt.color ? `${opt.color}20` : 'rgba(59,130,246,0.15)',
                               borderColor: opt.color ? `${opt.color}50` : 'rgba(59,130,246,0.3)',

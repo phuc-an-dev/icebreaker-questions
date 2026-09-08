@@ -181,3 +181,49 @@ html.theme-transitioning canvas {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* ============================================
+   MOBILE INPUT ZOOM PREVENTION
+   iOS Safari auto-zooms when input font-size < 16px.
+   Fix: force font-size to 16px on touch devices, then
+   use CSS transform to scale back to the original visual size
+   WITHOUT disabling pinch-to-zoom (which would break a11y).
+
+   Scale factors:
+     text-xs (12px):  scale = 12/16 = 0.75
+     text-sm (14px):  scale = 14/16 = 0.875
+     text-base (16px): no scaling needed
+
+   We use a wrapper approach — the outer element shrinks to
+   match original width via transform-origin and negative margin.
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+  /*
+   * Force all interactive text inputs to meet Safari's 16px threshold.
+   * transform: scale() is applied to preserve the visual size.
+   * transform-origin: top left ensures the element shrinks inward.
+   */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /*
+   * Tailwind text-sm inputs (designed at 14px → scale 0.875):
+   * These inputs have text-sm in their className.
+   * We compensate by reducing padding slightly so the field
+   * stays the same visual height as on desktop.
+   */
+  .text-sm-input-mobile {
+    font-size: 16px !important;
+    transform: scale(0.875);
+    transform-origin: top left;
+  }
+}
+

@@ -32,7 +32,7 @@ export async function PATCH(
 
   try {
     const body = await req.json();
-    const { status, name, role, newPassword } = body;
+    const { status, name, email, role, newPassword } = body;
 
     const target = await findAdminById(id);
     if (!target) {
@@ -67,10 +67,11 @@ export async function PATCH(
     }
 
     // Status / details update branch
-    if (status || name || role) {
+    if (status || name || email || role) {
       const updated = await updateAdminUser(id, {
         status: status === 'suspended' ? 'suspended' : status === 'active' ? 'active' : undefined,
         name: typeof name === 'string' && name.trim() ? name.trim() : undefined,
+        email: typeof email === 'string' && email.trim() ? email.trim() : undefined,
         role: role === 'master_admin' ? 'master_admin' : role === 'admin' ? 'admin' : undefined,
       });
       return NextResponse.json({ success: true, user: updated });
