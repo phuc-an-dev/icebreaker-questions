@@ -10,6 +10,7 @@ import { PresentationModal } from '@/components/stage/PresentationModal';
 import { StatsBar } from '@/components/ui/StatsBar';
 import { StageCanvasBg } from '@/components/canvas/StageCanvasBg';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { Pagination } from '@/components/ui/Pagination';
 import { hapticFeedback } from '@/lib/haptics';
 import Link from 'next/link';
 import {
@@ -85,6 +86,27 @@ export function IcebreakerClient({
   const [stageOpen, setStageOpen] = useState(false);
   const [currentStageQuestion, setCurrentStageQuestion] = useState<Question | null>(null);
 
+  // Pagination state (default: 24 questions per page for fast mobile rendering)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(24);
+
+  // Derive filter key to reset page on filter change during render (React "You Might Not Need an Effect")
+  const filterKey = `${filters.categories.join(',')}|${filters.types.join(',')}|${filters.tags.join(',')}|${filters.author}|${filters.search}|${filters.hideAsked}|${filters.onlyFavorites}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
+    setPage(1);
+  }
+
+  const totalPages = Math.ceil(filteredQuestions.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+
+  const paginatedQuestions = React.useMemo(() => {
+    const startIndex = (safePage - 1) * pageSize;
+    return filteredQuestions.slice(startIndex, startIndex + pageSize);
+  }, [filteredQuestions, safePage, pageSize]);
+
   // Card highlight animation state
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -138,11 +160,24 @@ export function IcebreakerClient({
     const pick = getRandomQuestion();
     if (!pick) return;
 
-    setHighlightedId(pick.id);
-    const el = cardRefs.current.get(pick.id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Navigate to page containing the selected question if needed
+    const pickIndex = filteredQuestions.findIndex((q) => q.id === pick.id);
+    if (pickIndex !== -1) {
+      const targetPage = Math.floor(pickIndex / pageSize) + 1;
+      if (targetPage !== safePage) {
+        setPage(targetPage);
+      }
     }
+
+    setHighlightedId(pick.id);
+
+    // Scroll after render cycle
+    setTimeout(() => {
+      const el = cardRefs.current.get(pick.id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 120);
 
     setTimeout(() => {
       setHighlightedId(null);
@@ -278,40 +313,73 @@ export function IcebreakerClient({
               </button>
             </div>
           ) : (
-            <div
-              className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 transition-opacity duration-200 ${
-                isSearching ? 'opacity-60 pointer-events-none' : 'opacity-100'
-              }`}
-            >
-              {filteredQuestions.map((q) => {
-                const isHighlight = highlightedId === q.id;
-                return (
-                  <div
-                    key={q.id}
-                    ref={(el) => {
-                      if (el) cardRefs.current.set(q.id, el);
-                      else cardRefs.current.delete(q.id);
+            <>
+              <div id="questions-grid-top" className="scroll-mt-6" />
+              <div
+                className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 transition-opacity duration-200 ${
+                  isSearching ? 'opacity-60 pointer-events-none' : 'opacity-100'
+                }`}
+              >
+                {paginatedQuestions.map((q, idx) => {
+                  const isHighlight = highlightedId === q.id;
+                  const isBelowFold = idx >= 6;
+                  return (
+                    <div
+                      key={q.id}
+                      ref={(el) => {
+                        if (el) cardRefs.current.set(q.id, el);
+                        else cardRefs.current.delete(q.id);
+                      }}
+                      className={`transition-all duration-500 rounded-2xl ${
+                        isBelowFold ? 'question-card-deferred' : ''
+                      } ${
+                        isHighlight
+                          ? 'ring-4 ring-blue-500 scale-[1.02] shadow-2xl shadow-blue-500/50'
+                          : ''
+                      }`}
+                    >
+                      <QuestionCard
+                        question={q}
+                        isAsked={isClient && askedIds.has(q.id)}
+                        isFavorite={isClient && favoriteIds.has(q.id)}
+                        onToggleAsked={toggleAsked}
+                        onToggleFavorite={toggleFavorite}
+                        onOpenStage={(target) => handleOpenStage(target)}
+                        categoryMeta={categoriesMap[q.category]}
+                        typeMeta={typesMap[q.type]}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mobile-First Pagination Navigation */}
+              {filteredQuestions.length > pageSize && (
+                <div className="mt-8">
+                  <Pagination
+                    page={safePage}
+                    totalPages={totalPages}
+                    totalItems={filteredQuestions.length}
+                    pageSize={pageSize}
+                    pageSizeOptions={[18, 24, 36, 72]}
+                    onPageSizeChange={(newSize) => {
+                      setPageSize(newSize);
+                      setPage(1);
                     }}
-                    className={`transition-all duration-500 rounded-2xl ${
-                      isHighlight
-                        ? 'ring-4 ring-blue-500 scale-[1.02] shadow-2xl shadow-blue-500/50'
-                        : ''
-                    }`}
-                  >
-                    <QuestionCard
-                      question={q}
-                      isAsked={isClient && askedIds.has(q.id)}
-                      isFavorite={isClient && favoriteIds.has(q.id)}
-                      onToggleAsked={toggleAsked}
-                      onToggleFavorite={toggleFavorite}
-                      onOpenStage={(target) => handleOpenStage(target)}
-                      categoryMeta={categoriesMap[q.category]}
-                      typeMeta={typesMap[q.type]}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+                    onPageChange={(newPage) => {
+                      setPage(newPage);
+                      const gridTop = document.getElementById('questions-grid-top');
+                      if (gridTop) {
+                        gridTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      } else {
+                        window.scrollTo({ top: 300, behavior: 'smooth' });
+                      }
+                    }}
+                    itemName="questions"
+                  />
+                </div>
+              )}
+            </>
           )}
         </section>
 

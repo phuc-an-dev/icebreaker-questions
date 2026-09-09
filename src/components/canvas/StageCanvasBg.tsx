@@ -45,9 +45,21 @@ export const StageCanvasBg: React.FC<StageCanvasBgProps> = ({
 
     window.addEventListener('resize', handleResize);
 
+    // Cache canvas rect to prevent forced reflow on every mousemove
+    let canvasRect = canvas.getBoundingClientRect();
+    const updateCanvasRect = () => {
+      if (canvas) canvasRect = canvas.getBoundingClientRect();
+    };
+    window.addEventListener('resize', updateCanvasRect, { passive: true });
+    window.addEventListener('scroll', updateCanvasRect, { passive: true });
+
+    // Scale down particles on mobile to save CPU/GPU
+    const isMobile = window.innerWidth < 640;
+    const effectiveCount = isMobile ? Math.min(particleCount, 14) : particleCount;
+
     // Initialize particles
     const particles: Particle[] = [];
-    for (let i = 0; i < particleCount; i++) {
+    for (let i = 0; i < effectiveCount; i++) {
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
@@ -61,12 +73,11 @@ export const StageCanvasBg: React.FC<StageCanvasBgProps> = ({
     // Pointer interaction
     const pointer = { x: -1000, y: -1000, radius: 150 };
     const handlePointerMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      pointer.x = e.clientX - rect.left;
-      pointer.y = e.clientY - rect.top;
+      pointer.x = e.clientX - canvasRect.left;
+      pointer.y = e.clientY - canvasRect.top;
     };
 
-    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mousemove', handlePointerMove, { passive: true });
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);

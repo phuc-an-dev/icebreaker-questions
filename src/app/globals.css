@@ -227,3 +227,12 @@ html.theme-transitioning canvas {
   }
 }
 
+/* ============================================
+   DEFERRED CONTENT RENDERING
+   Skip rendering workload for cards below the initial fold
+   ============================================ */
+.question-card-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 240px;
+}
+
